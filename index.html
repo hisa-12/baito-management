@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="バイト帳">
+<meta name="theme-color" content="#f6f7f9">
+<title>バイト帳</title>
+<style>
+:root{
+  --bg:#f6f7f9;--card:#fff;--text:#1d2129;--sub:#6b7280;--line:#e5e7eb;
+  --accent:#2563eb;--accent-soft:#e8efff;--sun:#dc2626;--sat:#2563eb;--ok:#16a34a;--warn:#d97706;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#111318;--card:#1b1e25;--text:#e8eaee;--sub:#9aa1ad;--line:#2b2f38;--accent:#5b8cff;--accent-soft:#1f2a44;--sun:#f87171;--sat:#7aa2ff;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 16px 8px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:20px;margin:0}
+main{padding:0 12px calc(90px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;border:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.sub{color:var(--sub);font-size:13px}
+button{font:inherit;border:none;border-radius:10px;padding:10px 14px;background:var(--accent-soft);color:var(--accent);font-weight:600;cursor:pointer}
+button.primary{background:var(--accent);color:#fff}
+button.danger{background:transparent;color:var(--sun)}
+button.ghost{background:transparent;padding:6px 10px}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+label.f{display:block;margin-bottom:10px}
+label.f>span{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.stats b{display:block;font-size:16px}
+.stats small{color:var(--sub);font-size:11px}
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal .wd{text-align:center;font-size:11px;color:var(--sub);padding:4px 0}
+.cal .day{min-height:62px;border-radius:8px;padding:3px;background:var(--bg);font-size:12px;cursor:pointer;border:2px solid transparent;overflow:hidden}
+.cal .day.out{opacity:.35}
+.cal .day.today .n{background:var(--accent);color:#fff;border-radius:50%;}
+.cal .day.sel{border-color:var(--accent)}
+.cal .n{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;font-weight:600}
+.cal .sun .n{color:var(--sun)} .cal .sat .n{color:var(--sat)}
+.cal .today.sun .n,.cal .today.sat .n{color:#fff}
+.chip{display:block;background:var(--accent);color:#fff;border-radius:4px;font-size:9px;letter-spacing:-.3px;padding:1px 2px;text-align:center;margin-top:2px;white-space:nowrap;overflow:hidden}
+.chip.plan{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.shift{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.shift:last-child{border-bottom:none}
+.tag{font-size:11px;padding:1px 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent);margin-left:4px}
+.tag.h{background:#fde8e8;color:var(--sun)}
+.tag.n{background:#ede9fe;color:#7c3aed}
+@media (prefers-color-scheme:dark){.tag.h{background:#3b1d1d}.tag.n{background:#2a2346}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 4px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-weight:500;font-size:12px}
+.bar{height:10px;background:var(--bg);border-radius:6px;overflow:hidden;margin:6px 0 2px;border:1px solid var(--line)}
+.bar>div{height:100%;background:var(--ok)}
+.bar>div.warn{background:var(--warn)} .bar>div.over{background:var(--sun)}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);z-index:10}
+nav button{flex:1;background:none;color:var(--sub);border-radius:0;padding:10px 0 8px;font-size:11px;font-weight:500}
+nav button .i{display:block;font-size:20px;margin-bottom:2px}
+nav button.on{color:var(--accent)}
+.fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;font-size:28px;padding:0;background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:11}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.modal.show{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+.preview{background:var(--accent-soft);border-radius:10px;padding:10px;margin:6px 0 12px;font-size:14px}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.presets button{padding:6px 10px;font-size:13px}
+.hidden{display:none!important}
+#login{position:fixed;inset:0;background:var(--bg);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+#login .card{width:100%;max-width:380px}
+.toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;opacity:0;transition:.2s;z-index:40;pointer-events:none}
+.toast.show{opacity:.9}
+.chk{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.chk input{width:auto}
+</style>
+</head>
+<body>
+
+<!-- ログイン（Firebase設定時のみ） -->
+<div id="login" class="hidden">
+  <div class="card">
+    <h2 style="margin-top:0">バイト帳</h2>
+    <label class="f"><span>メールアドレス</span><input id="lgEmail" type="email" autocomplete="username"></label>
+    <label class="f"><span>パスワード</span><input id="lgPass" type="password" autocomplete="current-password"></label>
+    <div class="row"><button class="primary" id="lgIn" style="flex:1">ログイン</button><button id="lgUp">新規登録</button></div>
+    <p class="sub" id="lgMsg"></p>
+  </div>
+</div>
+
+<header>
+  <h1 id="title">バイト帳</h1>
+  <span class="sub" id="syncState"></span>
+</header>
+
+<main>
+  <!-- カレンダー -->
+  <section id="tab-cal">
+    <div class="card">
+      <div class="row between" style="margin-bottom:8px">
+        <button class="ghost" id="prevM">‹</button>
+        <b id="monthLabel" style="font-size:17px"></b>
+        <button class="ghost" id="nextM">›</button>
+      </div>
+      <div class="stats" id="monthStats"></div>
+    </div>
+    <div class="card"><div class="cal" id="cal"></div></div>
+    <div class="card" id="dayPanel"></div>
+  </section>
+
+  <!-- 一覧 -->
+  <section id="tab-list" class="hidden">
+    <div class="card">
+      <div class="row between">
+        <button class="ghost" id="prevM2">‹</button>
+        <b id="monthLabel2" style="font-size:17px"></b>
+        <button class="ghost" id="nextM2">›</button>
+      </div>
+    </div>
+    <div class="card" id="listBox"></div>
+  </section>
+
+  <!-- 集計 -->
+  <section id="tab-sum" class="hidden">
+    <div class="card">
+      <div class="row between">
+        <button class="ghost" id="prevY">‹</button>
+        <b id="yearLabel" style="font-size:17px"></b>
+        <button class="ghost" id="nextY">›</button>
+      </div>
+      <p class="sub" style="margin:6px 0 0;text-align:center">給料日ベース（その年に支給される分）で集計</p>
+    </div>
+    <div class="card" id="annualBox"></div>
+    <div class="card" id="periodBox"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="tab-set" class="hidden">
+    <div class="card">
+      <h3 style="margin-top:0">給料</h3>
+      <label class="f"><span>バイト先の名前</span><input id="sJob" placeholder="例：〇〇店"></label>
+      <div class="grid2">
+        <label class="f"><span>時給（円）</span><input id="sWage" type="number" inputmode="numeric"></label>
+        <label class="f"><span>交通費（1日あたり・円）</span><input id="sTrans" type="number" inputmode="numeric"></label>
+        <label class="f"><span>深夜割増（%・22〜5時）</span><input id="sNight" type="number" inputmode="numeric"></label>
+        <label class="f"><span>休日割増（%）</span><input id="sHol" type="number" inputmode="numeric"></label>
+      </div>
+      <div class="chk"><input type="checkbox" id="sHolAuto"><label for="sHolAuto">土日・祝日を自動で「休日」にする</label></div>
+      <label class="f"><span>よく使う時間（カンマ区切り）</span><input id="sPresets" placeholder="09:00-13:00,13:00-17:00"></label>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">締め日・給料日</h3>
+      <div class="grid3">
+        <label class="f"><span>締め日</span><select id="sClose"></select></label>
+        <label class="f"><span>支給月</span><select id="sPayOff"><option value="0">当月</option><option value="1">翌月</option><option value="2">翌々月</option></select></label>
+        <label class="f"><span>給料日</span><select id="sPayDay"></select></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">年収チェック</h3>
+      <label class="f"><span>気にしたい年収ライン（円・カンマ区切り）</span><input id="sLines" placeholder="1230000,1500000,1600000"></label>
+      <p class="sub" style="margin:0">交通費を除いた給与の年間合計（1〜12月に支給された分）と比べます。ラインは制度改正があるので、家族や勤務先に確認した金額にしてください。</p>
+    </div>
+    <button class="primary" id="saveSet" style="width:100%;margin-bottom:12px">設定を保存</button>
+    <div class="card">
+      <h3 style="margin-top:0">データ</h3>
+      <p class="sub" id="modeInfo"></p>
+      <div class="row" style="flex-wrap:wrap">
+        <button id="exportBtn">バックアップを書き出す</button>
+        <button id="importBtn">読み込む</button>
+        <button class="danger hidden" id="logoutBtn">ログアウト</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+    </div>
+  </section>
+</main>
+
+<button class="fab" id="fab">＋</button>
+
+<nav>
+  <button data-tab="cal" class="on"><span class="i">📅</span>カレンダー</button>
+  <button data-tab="list"><span class="i">📋</span>一覧</button>
+  <button data-tab="sum"><span class="i">💴</span>集計</button>
+  <button data-tab="set"><span class="i">⚙️</span>設定</button>
+</nav>
+
+<!-- シフト入力 -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <div class="row between"><h3 style="margin:0" id="mTitle">シフトを追加</h3><button class="ghost" id="mClose">✕</button></div>
+    <label class="f" style="margin-top:10px"><span>日付</span><input id="fDate" type="date"></label>
+    <div class="presets" id="presetBox"></div>
+    <div class="grid3">
+      <label class="f"><span>開始</span><input id="fStart" type="time"></label>
+      <label class="f"><span>終了</span><input id="fEnd" type="time"></label>
+      <label class="f"><span>休憩（分）</span><input id="fBrk" type="number" inputmode="numeric"></label>
+    </div>
+    <div class="grid2">
+      <label class="f"><span>時給（円）</span><input id="fWage" type="number" inputmode="numeric"></label>
+      <label class="f"><span>交通費（円）</span><input id="fTrans" type="number" inputmode="numeric"></label>
+    </div>
+    <div class="chk"><input type="checkbox" id="fHol"><label for="fHol">休日扱い（休日割増を適用）</label></div>
+    <label class="f"><span>メモ</span><input id="fMemo" placeholder="任意"></label>
+    <div class="preview" id="fPreview"></div>
+    <div class="row">
+      <button class="danger hidden" id="fDel">削除</button>
+      <div style="flex:1"></div>
+      <button class="primary" id="fSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ============================================================
+   ① Firebaseの設定（コイン帳と同じプロジェクトでOK）
+   空のままだと「この端末だけに保存するモード」で動きます
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
+  authDomain: "tsum-coin.firebaseapp.com",
+  projectId: "tsum-coin",
+  storageBucket: "tsum-coin.firebasestorage.app",
+  messagingSenderId: "1034166804823",
+  appId: "1:1034166804823:web:d60ad0168f10d316919e12"
+};
+const USE_CLOUD = !!FIREBASE_CONFIG.apiKey;
+
+/* ---------- 祝日（2026・2027年） ---------- */
+const HOLIDAYS = new Set([
+  "2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06",
+  "2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23",
+  "2027-01-01","2027-01-11","2027-02-11","2027-02-23","2027-03-21","2027-03-22","2027-04-29","2027-05-03","2027-05-04","2027-05-05",
+  "2027-07-19","2027-08-11","2027-09-20","2027-09-23","2027-10-11","2027-11-03","2027-11-23"
+]);
+
+const DEFAULT_SETTINGS = {
+  jobName:"", wage:1300, transport:0, nightRate:25, holidayRate:0, holidayAuto:true,
+  presets:"09:00-13:00,13:00-17:00", closeDay:0, payOffset:1, payDay:25,
+  lines:[1230000,1500000,1600000]
+};
+
+let settings = {...DEFAULT_SETTINGS};
+let shifts = {};            // id -> shift
+let backend = null;
+
+/* ---------- ユーティリティ ---------- */
+const $ = id => document.getElementById(id);
+const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toMin = t => { const [h,m] = (t||"0:0").split(":").map(Number); return h*60+m; };
+const hm = min => `${Math.floor(min/60)}h${min%60 ? pad(min%60) : ""}`;
+const lastDay = (y,m) => new Date(y,m,0).getDate();      // m: 1〜12
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayStr = ymd(new Date());
+const isHoliday = ds => { const w = new Date(ds+"T00:00").getDay(); return w===0 || w===6 || HOLIDAYS.has(ds); };
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1600); }
+
+/* ---------- 給料計算 ---------- */
+function calc(sh){
+  const s = toMin(sh.start); let e = toMin(sh.end);
+  if (e <= s) e += 1440;                                   // 日付またぎ
+  const work = Math.max(0, (e - s) - (+sh.brk || 0));
+  let night = 0;
+  for (const [a,b] of [[0,300],[1320,1740],[2760,3180]]) night += Math.max(0, Math.min(e,b) - Math.max(s,a));
+  night = Math.min(night, work);                           // 休憩は通常時間から引く想定
+  const wage = +sh.wage || 0;
+  const hr = sh.holiday ? (+settings.holidayRate||0)/100 : 0;
+  const nr = (+settings.nightRate||0)/100;
+  const pay = Math.floor(work/60*wage*(1+hr) + night/60*wage*nr);
+  return { work, night, pay, transport: +sh.transport || 0 };
+}
+function sumOf(list){
+  return list.reduce((a,sh)=>{ const c=calc(sh); a.days++; a.work+=c.work; a.pay+=c.pay; a.trans+=c.transport; return a; },
+    {days:0,work:0,pay:0,trans:0});
+}
+
+/* ---------- 締め日・給料日 ---------- */
+function periodOf(ds){
+  let [y,m,d] = ds.split("-").map(Number);
+  const c = +settings.closeDay;
+  if (c && d > c) { m++; if (m>12){ m=1; y++; } }
+  return {cy:y, cm:m};
+}
+function payDateOf(cy,cm){
+  let y=cy, m=cm + (+settings.payOffset);
+  while (m>12){ m-=12; y++; }
+  const p = +settings.payDay;
+  return {y, m, d: p===0 ? lastDay(y,m) : Math.min(p, lastDay(y,m))};
+}
+function periodRange(cy,cm){
+  const c = +settings.closeDay;
+  const endD = c===0 ? lastDay(cy,cm) : Math.min(c, lastDay(cy,cm));
+  let py=cy, pm=cm-1; if (pm<1){ pm=12; py--; }
+  const prevEnd = c===0 ? lastDay(py,pm) : Math.min(c, lastDay(py,pm));
+  const start = new Date(py, pm-1, prevEnd+1);
+  return `${start.getMonth()+1}/${start.getDate()}〜${cm}/${endD}`;
+}
+
+/* ---------- 保存先：この端末のみ ---------- */
+function localBackend(){
+  const KEY = "baito-v1";
+  try { const raw = localStorage.getItem(KEY); if (raw){ const o=JSON.parse(raw); settings={...DEFAULT_SETTINGS,...o.settings}; shifts=o.shifts||{}; } } catch(e){}
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({settings,shifts})); } catch(e){ toast("保存できませんでした"); } };
+  $("syncState").textContent = "この端末に保存";
+  $("modeInfo").textContent = "いまはこの端末のブラウザだけに保存しています。Firebaseを設定すると端末間で同期されます。";
+  render();
+  return {
+    saveSettings(s){ settings=s; persist(); render(); },
+    saveShift(sh){ shifts[sh.id]=sh; persist(); render(); },
+    deleteShift(id){ delete shifts[id]; persist(); render(); }
+  };
+}
+
+/* ---------- 保存先：Firebase（端末間同期） ---------- */
+async function cloudBackend(){
+  const V = "10.12.2";
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const A = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+  const F = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = A.getAuth(app);
+  const db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
+  let uid = null, unsubs = [];
+
+  const loginMsg = m => $("lgMsg").textContent = m;
+  $("lgIn").onclick = () => A.signInWithEmailAndPassword(auth, $("lgEmail").value, $("lgPass").value).catch(e=>loginMsg("ログインできません："+e.code));
+  $("lgUp").onclick = () => A.createUserWithEmailAndPassword(auth, $("lgEmail").value, $("lgPass").value).catch(e=>loginMsg("登録できません："+e.code));
+  $("logoutBtn").classList.remove("hidden");
+  $("logoutBtn").onclick = () => A.signOut(auth);
+
+  A.onAuthStateChanged(auth, user => {
+    unsubs.forEach(u=>u()); unsubs=[];
+    if (!user){ uid=null; $("login").classList.remove("hidden"); return; }
+    uid = user.uid;
+    $("login").classList.add("hidden");
+    $("modeInfo").textContent = `${user.email} でログイン中。iPhone・iPad・PCで自動同期されます。`;
+    unsubs.push(F.onSnapshot(F.doc(db,"baitoUsers",uid), snap => {
+      settings = {...DEFAULT_SETTINGS, ...(snap.data()?.settings || {})}; fillSettings(); render();
+    }));
+    unsubs.push(F.onSnapshot(F.collection(db,"baitoUsers",uid,"shifts"), { includeMetadataChanges:true }, snap => {
+      shifts = {}; snap.forEach(d => shifts[d.id] = d.data());
+      $("syncState").textContent = snap.metadata.hasPendingWrites ? "同期待ち…" : "同期済み ✓";
+      render();
+    }));
+  });
+
+  return {
+    saveSettings(s){ settings=s; render(); F.setDoc(F.doc(db,"baitoUsers",uid), {settings:s}, {merge:true}); },
+    saveShift(sh){ shifts[sh.id]=sh; render(); F.setDoc(F.doc(db,"baitoUsers",uid,"shifts",sh.id), sh); },
+    deleteShift(id){ delete shifts[id]; render(); F.deleteDoc(F.doc(db,"baitoUsers",uid,"shifts",id)); }
+  };
+}
+
+/* ---------- 画面 ---------- */
+let cur = new Date(); cur.setDate(1);
+let selDate = todayStr;
+let curYear = new Date().getFullYear();
+const WD = ["日","月","火","水","木","金","土"];
+
+const shiftsOn = ds => Object.values(shifts).filter(s=>s.date===ds).sort((a,b)=>a.start.localeCompare(b.start));
+const shiftsInMonth = (y,m) => Object.values(shifts).filter(s=>s.date.startsWith(`${y}-${pad(m)}-`)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+
+function render(){ renderCal(); renderList(); renderSum(); $("title").textContent = settings.jobName ? `バイト帳｜${settings.jobName}` : "バイト帳"; }
+
+function shiftRow(sh){
+  const c = calc(sh);
+  const d = new Date(sh.date+"T00:00");
+  const tags = (sh.holiday ? '<span class="tag h">休日</span>' : "") + (c.night ? '<span class="tag n">深夜</span>' : "") + (sh.date > todayStr ? '<span class="tag">予定</span>' : "");
+  return `<div class="shift" data-id="${sh.id}">
+    <div><b>${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})</b> ${sh.start}〜${sh.end}${tags}
+      <div class="sub">${hm(c.work)}・休憩${+sh.brk||0}分・時給${yen(sh.wage)}${sh.memo ? "・"+esc(sh.memo) : ""}</div></div>
+    <div style="text-align:right"><b>${yen(c.pay)}</b><div class="sub">交通費 ${yen(c.transport)}</div></div>
+  </div>`;
+}
+function bindRows(root){ root.querySelectorAll(".shift").forEach(el => el.onclick = () => openForm(shifts[el.dataset.id])); }
+
+function renderCal(){
+  const y = cur.getFullYear(), m = cur.getMonth()+1;
+  $("monthLabel").textContent = $("monthLabel2").textContent = `${y}年${m}月`;
+  const s = sumOf(shiftsInMonth(y,m));
+  $("monthStats").innerHTML = `
+    <div><b>${s.days}日</b><small>勤務</small></div>
+    <div><b>${hm(s.work)}</b><small>時間</small></div>
+    <div><b>${yen(s.pay)}</b><small>給与</small></div>
+    <div><b>${yen(s.trans)}</b><small>交通費</small></div>`;
+  let html = WD.map(w=>`<div class="wd">${w}</div>`).join("");
+  const first = new Date(y, m-1, 1);
+  const start = new Date(first); start.setDate(1 - first.getDay());
+  for (let i=0; i<42; i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    if (i>=35 && d.getMonth()!==m-1) break;
+    const ds = ymd(d), w = d.getDay();
+    const cls = ["day", d.getMonth()!==m-1?"out":"", ds===todayStr?"today":"", ds===selDate?"sel":"", (w===0||HOLIDAYS.has(ds))?"sun":"", w===6?"sat":""].join(" ");
+    const chips = shiftsOn(ds).map(sh => `<span class="chip ${ds>todayStr?"plan":""}">${sh.start.replace(/^0/,"").replace(":00","")}-${sh.end.replace(/^0/,"").replace(":00","")}</span>`).join("");
+    html += `<div class="${cls}" data-d="${ds}"><span class="n">${d.getDate()}</span>${chips}</div>`;
+  }
+  $("cal").innerHTML = html;
+  $("cal").querySelectorAll(".day").forEach(el => el.onclick = () => { selDate = el.dataset.d; renderCal(); });
+  const d = new Date(selDate+"T00:00");
+  const list = shiftsOn(selDate);
+  $("dayPanel").innerHTML = `<div class="row between"><b>${d.getMonth()+1}月${d.getDate()}日(${WD[d.getDay()]})</b><button id="addOnDay">＋ この日に追加</button></div>` +
+    (list.length ? list.map(shiftRow).join("") : `<p class="sub">シフトはありません</p>`);
+  $("addOnDay").onclick = () => openForm(null, selDate);
+  bindRows($("dayPanel"));
+}
+
+function renderList(){
+  const list = shiftsInMonth(cur.getFullYear(), cur.getMonth()+1);
+  $("listBox").innerHTML = list.length ? list.map(shiftRow).join("") : `<p class="sub">この月のシフトはありません</p>`;
+  bindRows($("listBox"));
+}
+
+function renderSum(){
+  $("yearLabel").textContent = `${curYear}年`;
+  const groups = {};
+  for (const sh of Object.values(shifts)){
+    const {cy,cm} = periodOf(sh.date);
+    const pd = payDateOf(cy,cm);
+    if (pd.y !== curYear) continue;
+    const k = `${cy}-${pad(cm)}`;
+    (groups[k] ||= {cy,cm,pd,list:[]}).list.push(sh);
+  }
+  const keys = Object.keys(groups).sort();
+  let totalPay=0, totalTrans=0, donePay=0;
+  const rows = keys.map(k => {
+    const g = groups[k], s = sumOf(g.list);
+    const paid = `${g.pd.y}-${pad(g.pd.m)}-${pad(g.pd.d)}` <= todayStr;
+    totalPay += s.pay; totalTrans += s.trans; if (paid) donePay += s.pay;
+    return `<tr><td>${g.pd.m}/${g.pd.d}${paid?"":' <span class="tag">予定</span>'}<div class="sub">${periodRange(g.cy,g.cm)}</div></td>
+      <td>${s.days}日<div class="sub">${hm(s.work)}</div></td><td>${yen(s.pay)}</td><td>${yen(s.trans)}</td><td><b>${yen(s.pay+s.trans)}</b></td></tr>`;
+  }).join("");
+  $("periodBox").innerHTML = `<h3 style="margin-top:0">給料日ごと</h3>` + (rows
+    ? `<table><tr><th>支給日</th><th>勤務</th><th>給与</th><th>交通費</th><th>振込額</th></tr>${rows}</table>
+       <p class="sub" style="margin-bottom:0">※ 税金・保険料などの天引き前の金額です</p>`
+    : `<p class="sub">${curYear}年に支給されるシフトはまだありません</p>`);
+
+  const lines = (settings.lines||[]).filter(n=>n>0).sort((a,b)=>a-b);
+  const max = Math.max(...lines, totalPay, 1);
+  const bars = lines.map(L => {
+    const r = totalPay / L, cls = r>=1 ? "over" : r>=0.85 ? "warn" : "";
+    const rest = L - totalPay;
+    return `<div style="margin-top:10px"><div class="row between"><span>${(L/10000).toLocaleString()}万円ライン</span>
+      <span class="sub">${rest>0 ? "あと "+yen(rest) : "超過 "+yen(-rest)}</span></div>
+      <div class="bar"><div class="${cls}" style="width:${Math.min(100,r*100)}%"></div></div></div>`;
+  }).join("");
+  $("annualBox").innerHTML = `<h3 style="margin-top:0">年収チェック</h3>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+      <div><b>${yen(totalPay)}</b><small>給与（予定込み）</small></div>
+      <div><b>${yen(donePay)}</b><small>支給済み</small></div>
+      <div><b>${yen(totalTrans)}</b><small>交通費（別枠）</small></div>
+    </div>${bars || '<p class="sub">設定で年収ラインを入れると進み具合を表示します</p>'}`;
+}
+
+/* ---------- シフト入力フォーム ---------- */
+let editing = null;
+function openForm(sh, date){
+  editing = sh || null;
+  $("mTitle").textContent = sh ? "シフトを編集" : "シフトを追加";
+  $("fDel").classList.toggle("hidden", !sh);
+  const ds = sh?.date || date || selDate;
+  $("fDate").value = ds;
+  $("fStart").value = sh?.start || "09:00";
+  $("fEnd").value = sh?.end || "13:00";
+  $("fBrk").value = sh?.brk ?? 0;
+  $("fWage").value = sh?.wage ?? settings.wage;
+  $("fTrans").value = sh?.transport ?? settings.transport;
+  $("fHol").checked = sh ? !!sh.holiday : (settings.holidayAuto && isHoliday(ds));
+  $("fMemo").value = sh?.memo || "";
+  $("presetBox").innerHTML = (settings.presets||"").split(",").map(p=>p.trim()).filter(p=>/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(p))
+    .map(p=>`<button data-p="${p}">${p.replace("-","〜")}</button>`).join("");
+  $("presetBox").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const [a,z] = b.dataset.p.split("-"); $("fStart").value = a.padStart(5,"0"); $("fEnd").value = z.padStart(5,"0"); updatePreview();
+  });
+  updatePreview();
+  $("modal").classList.add("show");
+}
+function formShift(){
+  return { id: editing?.id || (Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+    date:$("fDate").value, start:$("fStart").value, end:$("fEnd").value, brk:+$("fBrk").value||0,
+    wage:+$("fWage").value||0, transport:+$("fTrans").value||0, holiday:$("fHol").checked, memo:$("fMemo").value.trim() };
+}
+function updatePreview(){
+  const c = calc(formShift());
+  $("fPreview").innerHTML = `勤務 <b>${hm(c.work)}</b>${c.night?`（深夜 ${hm(c.night)}）`:""} → 給与 <b>${yen(c.pay)}</b> ＋ 交通費 ${yen(c.transport)}`;
+}
+["fStart","fEnd","fBrk","fWage","fTrans","fHol"].forEach(id => $(id).addEventListener("input", updatePreview));
+$("fDate").addEventListener("change", () => { if (!editing && settings.holidayAuto) $("fHol").checked = isHoliday($("fDate").value); updatePreview(); });
+$("mClose").onclick = () => $("modal").classList.remove("show");
+$("modal").onclick = e => { if (e.target.id==="modal") $("modal").classList.remove("show"); };
+$("fSave").onclick = () => {
+  const sh = formShift();
+  if (!sh.date || !sh.start || !sh.end) return toast("日付と時間を入れてください");
+  backend.saveShift(sh); selDate = sh.date; $("modal").classList.remove("show"); toast("保存しました");
+};
+$("fDel").onclick = () => { if (editing){ backend.deleteShift(editing.id); $("modal").classList.remove("show"); toast("削除しました"); } };
+$("fab").onclick = () => openForm(null, selDate);
+
+/* ---------- 設定 ---------- */
+(function initSelects(){
+  $("sClose").innerHTML = `<option value="0">末日</option>` + Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}日</option>`).join("");
+  $("sPayDay").innerHTML = `<option value="0">末日</option>` + Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}日</option>`).join("");
+})();
+function fillSettings(){
+  $("sJob").value = settings.jobName; $("sWage").value = settings.wage; $("sTrans").value = settings.transport;
+  $("sNight").value = settings.nightRate; $("sHol").value = settings.holidayRate; $("sHolAuto").checked = settings.holidayAuto;
+  $("sPresets").value = settings.presets; $("sClose").value = settings.closeDay; $("sPayOff").value = settings.payOffset;
+  $("sPayDay").value = settings.payDay; $("sLines").value = (settings.lines||[]).join(",");
+}
+$("saveSet").onclick = () => {
+  backend.saveSettings({
+    jobName:$("sJob").value.trim(), wage:+$("sWage").value||0, transport:+$("sTrans").value||0,
+    nightRate:+$("sNight").value||0, holidayRate:+$("sHol").value||0, holidayAuto:$("sHolAuto").checked,
+    presets:$("sPresets").value, closeDay:+$("sClose").value, payOffset:+$("sPayOff").value, payDay:+$("sPayDay").value,
+    lines:$("sLines").value.split(/[,、\s]+/).map(Number).filter(n=>n>0)
+  });
+  toast("設定を保存しました");
+};
+$("exportBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify({settings,shifts},null,1)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `baito-backup-${todayStr}.json`; a.click();
+};
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = async e => {
+  try {
+    const o = JSON.parse(await e.target.files[0].text());
+    if (o.settings) backend.saveSettings({...DEFAULT_SETTINGS, ...o.settings});
+    for (const sh of Object.values(o.shifts||{})) backend.saveShift(sh);
+    fillSettings(); toast("読み込みました");
+  } catch(err){ toast("読み込めませんでした"); }
+  e.target.value = "";
+};
+
+/* ---------- タブ・月移動 ---------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("on", x===b));
+  ["cal","list","sum","set"].forEach(t => $("tab-"+t).classList.toggle("hidden", t!==b.dataset.tab));
+  $("fab").classList.toggle("hidden", b.dataset.tab==="set" || b.dataset.tab==="sum");
+  if (b.dataset.tab==="set") fillSettings();
+  window.scrollTo(0,0);
+});
+const moveM = n => { cur.setMonth(cur.getMonth()+n); render(); };
+$("prevM").onclick = $("prevM2").onclick = () => moveM(-1);
+$("nextM").onclick = $("nextM2").onclick = () => moveM(1);
+$("prevY").onclick = () => { curYear--; renderSum(); };
+$("nextY").onclick = () => { curYear++; renderSum(); };
+
+/* ---------- 起動 ---------- */
+fillSettings();
+if (USE_CLOUD){
+  $("syncState").textContent = "接続中…";
+  cloudBackend().then(b => backend = b).catch(e => { console.error(e); toast("Firebaseに接続できません。端末保存で動きます"); backend = localBackend(); });
+} else {
+  backend = localBackend();
+}
+</script>
+</body>
+</html>
