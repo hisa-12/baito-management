@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.0', date: '2026/11/13 19:40' };
+window.APP_VERSION = { no: '2.1', date: '2026/11/13 20:40' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -379,17 +379,18 @@ html.gate-open body{padding-bottom:0}
           <input id="sJob" class="pref-text" maxlength="30" autocomplete="off" placeholder="例：〇〇店">
         </div>
         <div class="pref-row">
-          <div class="pref-grid">
-            <label>時給（円）<input id="sWage" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
-            <label>交通費（1日・円）<input id="sTrans" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
-            <label>深夜割増（%・22〜5時）<input id="sNight" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
-            <label>休日割増（%）<input id="sHol" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
-          </div>
-          <p class="hint">時給を変えても、これまでのシフトの時給は変わりません（新しく入れるシフトから反映）。</p>
+          <label class="pref-k" for="sJobKind">いつもの業務（シフトを追加するときの最初の値）</label>
+          <select id="sJobKind" class="pref-sel"></select>
+          <span class="pref-k">今のランク</span>
+          <div class="seg seg-wide" id="sRankSeg" role="group" aria-label="ランク"><button type="button" data-v="S">S</button><button type="button" data-v="A">A</button><button type="button" data-v="B">B</button><button type="button" data-v="C">C</button></div>
+          <p class="hint" id="sWageNote"></p>
         </div>
         <div class="pref-row">
-          <span class="pref-k">土日・祝日を自動で「休日扱い」にする</span>
-          <div class="seg seg-wide" id="holAutoSeg" role="group" aria-label="休日の自動判定"><button type="button" data-v="on">オン</button><button type="button" data-v="off">オフ</button></div>
+          <div class="pref-grid">
+            <label>交通費補助（1現場・円）<input id="sTrans" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
+            <label>時給（「その他」のとき）<input id="sWage" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
+          </div>
+          <p class="hint">給料表（2026年10月1日現在）どおりに自動で計算します：勤務時間は15分単位（端数は切り捨て）／8時間を超えた分は時間外（25%増）／22〜翌5時は深夜加算（25%）／最低保証時間より短いときは最低保証料／Bランク以上は交通費補助手当500円を自動でプラス。ランクを変えても、これまでのシフトの時給は変わりません。</p>
         </div>
         <div class="pref-row">
           <label class="pref-k" for="sPresets">よく使う時間（カンマ区切り・入力画面にボタンで出ます）</label>
@@ -401,7 +402,13 @@ html.gate-open body{padding-bottom:0}
     <section id="paydaySec">
       <h2>締め日・給料日</h2>
       <div class="backup pref">
-        <div class="pref-grid pref-grid3">
+        <div class="pref-row">
+          <span class="pref-k">給料の払われ方</span>
+          <div class="seg seg-wide" id="payModeSeg" role="group" aria-label="給料の払われ方"><button type="button" data-v="twice">月2回（15日・末日締め）</button><button type="button" data-v="monthly">月1回</button></div>
+          <span class="pref-k">支給日が土日祝のとき</span>
+          <div class="seg seg-wide" id="payShiftSeg" role="group" aria-label="支給日が土日祝のとき"><button type="button" data-v="on">前の営業日にする</button><button type="button" data-v="off">そのまま</button></div>
+        </div>
+        <div class="pref-grid pref-grid3" id="monthlyGrid">
           <label>締め日<select id="sClose" class="pref-sel"></select></label>
           <label>支給月<select id="sPayOff" class="pref-sel"><option value="0">当月</option><option value="1">翌月</option><option value="2">翌々月</option></select></label>
           <label>給料日<select id="sPayDay" class="pref-sel"></select></label>
@@ -415,8 +422,8 @@ html.gate-open body{padding-bottom:0}
       <div class="backup pref">
         <div class="pref-row">
           <label class="pref-k" for="sLines">気にしたい年収ライン（円・カンマ区切り）</label>
-          <input id="sLines" class="pref-text num" inputmode="numeric" autocomplete="off" placeholder="1230000,1500000,1600000">
-          <p class="hint">交通費を除いた給与の年間合計（1〜12月に支給された分）と比べます。ラインは制度改正があるので、家族や勤務先に確認した金額にしてください。</p>
+          <input id="sLines" class="pref-text num" inputmode="numeric" autocomplete="off" placeholder="1360000,1500000,1590000">
+          <p class="hint">会社の資料（2026年分）より：136万円＝税の扶養（下の159万円に当てはまらない人）、159万円＝税の扶養（2026/12/31時点で19歳以上23歳未満）、150万円＝社会保険の扶養。自分に関係ないラインは消してOKです。<br>税の扶養は給与＋手当（交通費は除く）、社会保険の扶養は交通費も含めた金額で比べます。1〜12月に支給された分（給料日ベース）で数えます。制度の細かい判定は、家族や勤務先に確認してください。</p>
         </div>
       </div>
     </section>
@@ -496,15 +503,20 @@ html.gate-open body{padding-bottom:0}
       <div class="field wide"><div class="chips" id="presetChips"></div></div>
       <div class="field"><label for="fStart">開始</label><input id="fStart" type="time"></div>
       <div class="field"><label for="fEnd">終了</label><input id="fEnd" type="time"></div>
-      <div class="field"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
+      <div class="field wide"><label for="fJob">業務</label><select id="fJob" class="pref-sel" style="width:100%"></select></div>
+      <div class="field"><label>ランク</label><div class="seg seg-wide" id="fRankSeg" role="group" aria-label="ランク"><button type="button" data-v="S">S</button><button type="button" data-v="A">A</button><button type="button" data-v="B">B</button><button type="button" data-v="C">C</button></div></div>
       <div class="field"><label for="fWage">時給（円）</label><input id="fWage" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label for="fTrans">交通費（円）</label><input id="fTrans" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label>休日扱い</label><div class="seg seg-wide" id="fHolSeg" role="group" aria-label="休日扱い"><button type="button" data-v="on">する</button><button type="button" data-v="off">しない</button></div></div>
+      <div class="field"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="fTrans">交通費補助（円）</label><input id="fTrans" inputmode="numeric" autocomplete="off"></div>
+      <div class="field wide"><label>手当</label><div class="chips" id="fAllow">
+        <button class="chip" type="button" data-a="meal1">食事なし 1食 ¥800</button><button class="chip" type="button" data-a="meal2">食事なし 2食 ¥1,600</button>
+        <button class="chip" type="button" data-a="rain">雨天 ¥500</button><button class="chip" type="button" data-a="kake">掛け持ち ¥500</button></div></div>
+      <div class="field"><label for="fEnsei">遠征手当（円）</label><input id="fEnsei" inputmode="numeric" autocomplete="off" placeholder="0"></div>
       <div class="field wide"><label for="fMemo">メモ</label><input id="fMemo" maxlength="60" autocomplete="off" placeholder="なくてもOK" style="font-weight:500"></div>
     </div>
     <div class="result-row">
       <div class="result"><span class="lbl">勤務時間</span><span class="big" id="pvWork">—</span></div>
-      <div class="result netbox"><span class="lbl">給与</span><span class="big" id="pvPay">—</span></div>
+      <div class="result netbox"><span class="lbl">給与＋手当</span><span class="big" id="pvPay">—</span></div>
     </div>
     <p class="hint" id="pvSub"></p>
     <p class="err" id="edErr" hidden></p>
@@ -561,6 +573,21 @@ html.gate-open body{padding-bottom:0}
     '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21','2027-03-22','2027-04-29','2027-05-03','2027-05-04','2027-05-05',
     '2027-07-19','2027-08-11','2027-09-20','2027-09-23','2027-10-11','2027-11-03','2027-11-23'
   ]);
+  /* ---- 給料表（株式会社ライブパワー・2026年10月1日現在） ---- */
+  const JOBS = {
+    guide:  {name: '案内・グッズ販売 等',   min: 4, w: {S:1450, A:1400, B:1350, C:1300}},
+    setup:  {name: '設営・案内・撤去',      min: 4, w: {S:1500, A:1450, B:1400, C:1350}},
+    single: {name: '設営のみ／撤去のみ',    min: 3, w: {S:1550, A:1500, B:1450, C:1400}},
+    cater:  {name: 'ケータリング・ランナー', min: 4, w: {S:1550, A:1500, B:1450, C:1400}},
+    guard:  {name: '警備',                  min: 4, w: {S:1600, A:1550, B:1500, C:1450}},
+    other:  {name: 'その他（時給を入力）',   min: 0, w: null},
+  };
+  const RANKS = ['S','A','B','C'];
+  const OT_RATE = .25, NIGHT_RATE = .25, MEAL = 800, RAIN = 500, KAKE = 500, RANK_BONUS = 500;
+  const tableWage = (job, rank) => JOBS[job] && JOBS[job].w ? JOBS[job].w[rank] : null;
+  const jobLabel = sh => JOBS[sh.job] && sh.job !== 'other' ? `${JOBS[sh.job].name}（${sh.rank}）・` : '';
+  const LINE_NAMES = {1360000: '税の扶養（19〜22歳以外）', 1500000: '社会保険の扶養（交通費込み）', 1590000: '税の扶養（19〜22歳）'};
+  const LINE_WITH_TRANS = new Set([1500000]);
   const isRedDay = k => new Date(k + 'T00:00').getDay() === 0 || HOLIDAYS.has(k);
   const isOffDay = k => { const w = new Date(k + 'T00:00').getDay(); return w === 0 || w === 6 || HOLIDAYS.has(k); };
 
@@ -571,12 +598,12 @@ html.gate-open body{padding-bottom:0}
     const n = (v, d, lo, hi) => { v = Math.round(+v); return v >= lo && v <= hi ? v : d; };
     return {
       jobName: typeof o.jobName === 'string' ? o.jobName.slice(0, 30) : '',
-      wage: n(o.wage, 1300, 0, 100000), transport: n(o.transport, 0, 0, 100000),
-      nightRate: n(o.nightRate, 25, 0, 200), holidayRate: n(o.holidayRate, 0, 0, 200),
-      holidayAuto: o.holidayAuto !== false,
+      job: JOBS[o.job] ? o.job : 'guide', rank: RANKS.includes(o.rank) ? o.rank : 'C',
+      wage: n(o.wage, 1300, 0, 100000), transport: n(o.transport, 1000, 0, 100000),
+      payMode: o.payMode === 'monthly' ? 'monthly' : 'twice', payShift: o.payShift !== false,
       presets: typeof o.presets === 'string' ? o.presets.slice(0, 200) : '09:00-13:00,13:00-17:00',
       closeDay: n(o.closeDay, 0, 0, 28), payOffset: n(o.payOffset, 1, 0, 2), payDay: n(o.payDay, 25, 0, 28),
-      lines: Array.isArray(o.lines) ? o.lines.map(Number).filter(v => v > 0).slice(0, 8) : [1230000, 1500000, 1600000],
+      lines: Array.isArray(o.lines) && o.lines.join() !== '1230000,1500000,1600000' ? o.lines.map(Number).filter(v => v > 0).slice(0, 8) : [1360000, 1500000, 1590000],
       startTab: ['cal','list','sum','set'].includes(o.startTab) ? o.startTab : 'cal',
       weekStart: n(o.weekStart, 0, 0, 6),
       updatedAt: +o.updatedAt || 0,
@@ -590,30 +617,53 @@ html.gate-open body{padding-bottom:0}
   try { const o = JSON.parse(lsGet(LS_SHIFTS) || '{}'); for (const k in o) if (validShift(o[k])) shifts[k] = o[k]; } catch(_) {}
 
   /* ---- 給料の計算 ---- */
+  // 給料表どおり：15分単位（切り捨て）、8時間超は時間外、22〜翌5時は深夜加算、最低保証、手当
   function calc(sh){
     const s = toMin(sh.start); let e = toMin(sh.end);
     if (e <= s) e += 1440;                                   // 日付をまたぐ
-    const work = Math.max(0, (e - s) - (+sh.brk || 0));
-    let night = 0;
-    for (const [a,b] of [[0,300],[1320,1740],[2760,3180]]) night += Math.max(0, Math.min(e,b) - Math.max(s,a));
-    night = Math.min(night, work);                           // 休憩は通常の時間から引く
-    const wage = +sh.wage || 0;
-    const hr = sh.holiday ? settings.holidayRate / 100 : 0;
-    const pay = Math.floor(work/60*wage*(1+hr) + night/60*wage*settings.nightRate/100);
-    return { work, night, pay, trans: +sh.transport || 0 };
+    const isNight = m => { const x = m % 1440; return x < 300 || x >= 1320; };
+    const brk = Math.max(0, +sh.brk || 0);
+    const work = Math.floor(Math.max(0, (e - s) - brk) / 15) * 15;
+    // 休憩は昼の時間帯からとった扱い（足りなければ深夜から）。時間の早い順に、8時間目までを通常、それ以降を時間外として数える
+    let dayAll = 0; for (let m = s; m < e; m++) if (!isNight(m)) dayAll++;
+    let skipD = Math.min(brk, dayAll), skipN = brk - skipD, cnt = 0, rd = 0, rn = 0, od = 0, on = 0;
+    for (let m = s; m < e && cnt < work; m++){
+      const n = isNight(m);
+      if (!n && skipD > 0){ skipD--; continue; }
+      if (n && skipN > 0){ skipN--; continue; }
+      const ot = cnt >= 480; cnt++;
+      if (ot){ if (n) on++; else od++; } else { if (n) rn++; else rd++; }
+    }
+    const wage = +sh.wage || 0, otw = Math.round(wage * (1 + OT_RATE)), na = Math.round(wage * NIGHT_RATE);
+    let base = Math.floor(((rd + rn) * wage + (od + on) * otw + (rn + on) * na) / 60);
+    const minH = JOBS[sh.job] ? JOBS[sh.job].min : 0;
+    let guaranteed = false;
+    if (minH && work < minH * 60 && wage * minH > base){ base = wage * minH; guaranteed = true; }
+    const allow = (+sh.meals || 0) * MEAL + (sh.rain ? RAIN : 0) + (sh.kake ? KAKE : 0) + (+sh.ensei || 0);
+    const bonus = ['S','A','B'].includes(sh.rank) ? RANK_BONUS : 0;
+    return { work, night: rn + on, over: od + on, base, allow, pay: base + allow, guaranteed, minH, bonus, trans: (+sh.transport || 0) + bonus };
   }
   const sumOf = list => list.reduce((a, sh) => { const c = calc(sh); a.days++; a.work += c.work; a.pay += c.pay; a.trans += c.trans; return a; }, {days:0, work:0, pay:0, trans:0});
 
   /* ---- 締め日・給料日 ---- */
-  function periodOf(k){
-    let [y,m,d] = k.split('-').map(Number);
-    if (settings.closeDay && d > settings.closeDay){ m++; if (m > 12){ m = 1; y++; } }
-    return {cy:y, cm:m};
-  }
-  function payDateOf(cy, cm){
-    let y = cy, m = cm + settings.payOffset;
-    while (m > 12){ m -= 12; y++; }
-    return {y, m, d: settings.payDay === 0 ? lastDay(y,m) : Math.min(settings.payDay, lastDay(y,m))};
+  // 勤務日 → 締めの区切り（key）、勤務期間の表示、支給日
+  function periodInfo(k){
+    const [y, m, d] = k.split('-').map(Number);
+    let key, label, py, pm, pd;
+    if (settings.payMode === 'twice'){
+      // 1〜15日 → 当月25日、16日〜末日 → 翌月10日
+      if (d <= 15){ key = `${y}-${pad(m)}-1`; label = `${m}/1〜${m}/15`; py = y; pm = m; pd = 25; }
+      else { key = `${y}-${pad(m)}-2`; label = `${m}/16〜${m}/${lastDay(y, m)}`; py = y; pm = m + 1; if (pm > 12){ pm = 1; py++; } pd = 10; }
+    } else {
+      let cy = y, cm = m;
+      if (settings.closeDay && d > settings.closeDay){ cm++; if (cm > 12){ cm = 1; cy++; } }
+      key = `${cy}-${pad(cm)}`; label = periodRange(cy, cm);
+      py = cy; pm = cm + settings.payOffset; while (pm > 12){ pm -= 12; py++; }
+      pd = settings.payDay === 0 ? lastDay(py, pm) : Math.min(settings.payDay, lastDay(py, pm));
+    }
+    let dt = new Date(py, pm - 1, pd);
+    if (settings.payShift) while (isOffDay(dayKey(dt))) dt = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() - 1);   // 土日祝は前の営業日
+    return {key, label, pay: {y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate()}};
   }
   function periodRange(cy, cm){
     const c = settings.closeDay;
@@ -677,7 +727,7 @@ html.gate-open body{padding-bottom:0}
   const shiftsOn = k => all().filter(s => s.date === k).sort((a,b) => a.start.localeCompare(b.start));
   const shiftsInMonth = (y, m0) => { const p = `${y}-${pad(m0+1)}-`; return all().filter(s => s.date.startsWith(p)).sort((a,b) => (a.date + a.start).localeCompare(b.date + b.start)); };
   const wkOff = d => (d.getDay() - settings.weekStart + 7) % 7;
-  const tagsOf = (sh, c) => (sh.holiday ? '<span class="tag h">休日</span>' : '') + (c.night ? '<span class="tag n">深夜</span>' : '') + (sh.date > today() ? '<span class="tag p">予定</span>' : '');
+  const tagsOf = (sh, c) => (c.guaranteed ? '<span class="tag">最低保証</span>' : '') + (c.over ? '<span class="tag h">時間外</span>' : '') + (c.night ? '<span class="tag n">深夜</span>' : '') + (c.allow ? '<span class="tag">手当</span>' : '') + (sh.date > today() ? '<span class="tag p">予定</span>' : '');
 
   function render(){
     $('jobName').textContent = settings.jobName;
@@ -712,7 +762,7 @@ html.gate-open body{padding-bottom:0}
       + (ss.length ? ss.map(sh => {
           const c = calc(sh);
           return `<div class="shift" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="tm">${sh.start}〜${sh.end}${tagsOf(sh, c)}</div>`
-            + `<div class="sb">${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
+            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
             + `<div class="pay"><b>${yen(c.pay)}</b><div class="sb">交通費 ${yen(c.trans)}</div></div></div>`;
         }).join('') : '<div class="empty-note">シフトはありません</div>');
   }
@@ -740,7 +790,7 @@ html.gate-open body{padding-bottom:0}
     $('listBox').innerHTML = list.map(sh => {
       const c = calc(sh);
       return `<div class="shift${sh.date > t ? ' future' : ''}" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="dl">${dayLabel(sh.date)}${tagsOf(sh, c)}</div><div class="tm">${sh.start}〜${sh.end}</div>`
-        + `<div class="sb">${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
+        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
         + `<div class="pay"><b>${yen(c.pay)}</b><div class="sb">交通費 ${yen(c.trans)}</div></div></div>`;
     }).join('');
   }
@@ -751,16 +801,16 @@ html.gate-open body{padding-bottom:0}
     $('yearTitle').textContent = `${sumYear}年`;
     const t = today(), groups = {};
     for (const sh of all()){
-      const {cy, cm} = periodOf(sh.date), pd = payDateOf(cy, cm);
-      if (pd.y !== sumYear) continue;
-      (groups[`${cy}-${pad(cm)}`] ||= {cy, cm, pd, list: []}).list.push(sh);
+      const pi = periodInfo(sh.date);
+      if (pi.pay.y !== sumYear) continue;
+      (groups[pi.key] ||= {pd: pi.pay, label: pi.label, list: []}).list.push(sh);
     }
     const keys = Object.keys(groups).sort();
     let total = 0, done = 0, trans = 0, rows = '';
     for (const k of keys){
       const g = groups[k], s = sumOf(g.list), pk = `${g.pd.y}-${pad(g.pd.m)}-${pad(g.pd.d)}`, paid = pk <= t;
       total += s.pay; trans += s.trans; if (paid) done += s.pay;
-      rows += `<tr class="${paid ? '' : 'future'}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${periodRange(g.cy, g.cm)}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span></td></tr>`;
+      rows += `<tr class="${paid ? '' : 'future'}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${g.label}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与・手当 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span></td></tr>`;
     }
     $('periods').innerHTML = rows
       ? `<table><thead><tr><th>支給日</th><th>勤務</th><th>振込額</th></tr></thead><tbody>${rows}</tbody></table>`
@@ -769,11 +819,12 @@ html.gate-open body{padding-bottom:0}
     const lines = settings.lines.slice().sort((a, b) => a - b);
     let lh = '';
     for (const L of lines){
-      const r = total / L, rest = L - total, cls = r >= 1 ? 'over' : r >= .85 ? 'warn' : '';
-      lh += `<div class="line"><div class="line-top"><span>${(L / 10000).toLocaleString('ja-JP')}万円ライン</span><span class="r${rest <= 0 ? ' over' : ''}">${rest > 0 ? 'あと ' + yen(rest) : yen(-rest) + ' 超えています'}</span></div>`
+      const amt = LINE_WITH_TRANS.has(L) ? total + trans : total;
+      const r = amt / L, rest = L - amt, cls = r >= 1 ? 'over' : r >= .85 ? 'warn' : '';
+      lh += `<div class="line"><div class="line-top"><span>${(L / 10000).toLocaleString('ja-JP')}万円${LINE_NAMES[L] ? '・' + LINE_NAMES[L] : 'ライン'}</span><span class="r${rest <= 0 ? ' over' : ''}">${rest > 0 ? 'あと ' + yen(rest) : yen(-rest) + ' 超えています'}</span></div>`
         + `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, Math.round(r * 100))}"><i class="${cls}" style="width:${Math.min(100, r * 100).toFixed(1)}%"></i></div></div>`;
     }
-    $('annual').innerHTML = `<div class="goal-top"><span class="k">${sumYear}年の給与（予定込み・交通費は除く）</span></div>`
+    $('annual').innerHTML = `<div class="goal-top"><span class="k">${sumYear}年に支給される給与・手当（予定込み・交通費は除く）</span></div>`
       + `<div class="goal-left">${yen(total)}</div>`
       + `<div class="goal-sub"><span>支給済み <b>${yen(done)}</b></span><span>これから <b>${yen(total - done)}</b></span><span>交通費（別枠） <b>${yen(trans)}</b></span></div>`
       + (lh || '<p class="hint">設定の「年収チェック」でラインを入れると、ここに進み具合が出ます。</p>');
@@ -782,8 +833,16 @@ html.gate-open body{padding-bottom:0}
   $('yearNext').addEventListener('click', () => { sumYear++; renderSum(); });
 
   /* ---- シフトの入力・編集 ---- */
-  let editing = null, holOn = false;
-  const setHol = v => { holOn = v; document.querySelectorAll('#fHolSeg button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.v === 'on') === v ? 'true' : 'false')); };
+  let editing = null, fRank = 'C', fMeals = 0, fRain = false, fKake = false;
+  $('fJob').innerHTML = Object.entries(JOBS).map(([k, j]) => `<option value="${k}">${j.name}${j.min ? `（最低${j.min}時間）` : ''}</option>`).join('');
+  function paintEditor(){
+    document.querySelectorAll('#fRankSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === fRank ? 'true' : 'false'));
+    document.querySelectorAll('#fAllow .chip').forEach(c => { const a = c.dataset.a; c.classList.toggle('on', a === 'meal1' ? fMeals === 1 : a === 'meal2' ? fMeals === 2 : a === 'rain' ? fRain : fKake); });
+    const tw = tableWage($('fJob').value, fRank);
+    if (tw != null) $('fWage').value = fmt(tw);
+    $('fWage').readOnly = tw != null;
+    $('fWage').style.opacity = tw != null ? '.7' : '';
+  }
   const presetList = () => settings.presets.split(/[,、]/).map(p => p.trim()).filter(p => /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(p));
   function openEditor(sh, date){
     editing = sh || null;
@@ -795,10 +854,14 @@ html.gate-open body{padding-bottom:0}
     $('fStart').value = sh ? sh.start : p0[0];
     $('fEnd').value = sh ? sh.end : p0[1];
     $('fBrk').value = sh ? (+sh.brk || 0) : 0;
-    $('fWage').value = fmt(sh ? sh.wage : settings.wage);
+    $('fJob').value = sh ? (JOBS[sh.job] ? sh.job : 'other') : settings.job;
+    fRank = sh ? (RANKS.includes(sh.rank) ? sh.rank : settings.rank) : settings.rank;
+    fMeals = sh ? (+sh.meals || 0) : 0; fRain = sh ? !!sh.rain : false; fKake = sh ? !!sh.kake : false;
+    $('fWage').value = fmt(sh ? sh.wage : (tableWage(settings.job, settings.rank) ?? settings.wage));
     $('fTrans').value = fmt(sh ? (sh.transport || 0) : settings.transport);
-    setHol(sh ? !!sh.holiday : (settings.holidayAuto && isOffDay(k)));
+    $('fEnsei').value = sh && +sh.ensei ? fmt(sh.ensei) : '';
     $('fMemo').value = sh ? (sh.memo || '') : '';
+    paintEditor();
     $('presetChips').innerHTML = presets.map(p => `<button class="chip" type="button" data-p="${p}">${p.replace('-', '〜')}</button>`).join('');
     $('edDel').hidden = !sh; resetDel(); $('edErr').hidden = true;
     $('sheet').hidden = false;
@@ -808,8 +871,8 @@ html.gate-open body{padding-bottom:0}
   function formShift(){
     return { id: editing ? editing.id : 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       date: $('fDate').value, start: $('fStart').value, end: $('fEnd').value,
-      brk: toInt($('fBrk').value) || 0, wage: toInt($('fWage').value) || 0, transport: toInt($('fTrans').value) || 0,
-      holiday: holOn, memo: $('fMemo').value.trim().slice(0, 60) };
+      brk: toInt($('fBrk').value) || 0, job: $('fJob').value, rank: fRank, wage: toInt($('fWage').value) || 0, transport: toInt($('fTrans').value) || 0,
+      meals: fMeals, rain: fRain, kake: fKake, ensei: toInt($('fEnsei').value) || 0, memo: $('fMemo').value.trim().slice(0, 60) };
   }
   function preview(){
     const sh = formShift();
@@ -818,12 +881,19 @@ html.gate-open body{padding-bottom:0}
     const c = calc(sh);
     $('pvWork').textContent = hmShort(c.work);
     $('pvPay').textContent = yen(c.pay);
-    $('pvSub').textContent = [c.night ? `深夜 ${hm(c.night)}（${settings.nightRate}%増）` : '', sh.holiday && settings.holidayRate ? `休日 ${settings.holidayRate}%増` : '', `交通費 ${yen(c.trans)}`, toMin(sh.end) <= toMin(sh.start) ? '翌日まで' : ''].filter(Boolean).join('・');
+    $('pvSub').textContent = [c.guaranteed ? `最低保証（${c.minH}時間分）` : '', c.over ? `時間外 ${hm(c.over)}` : '', c.night ? `深夜 ${hm(c.night)}` : '', c.allow ? `手当 ${yen(c.allow)}` : '',
+      `交通費 ${yen(c.trans)}${c.bonus ? `（補助手当${yen(c.bonus)}込み）` : ''}`, toMin(sh.end) <= toMin(sh.start) ? '翌日まで' : '', '15分単位で計算'].filter(Boolean).join('・');
   }
-  ['fStart','fEnd','fBrk','fWage','fTrans'].forEach(id => $(id).addEventListener('input', preview));
-  ['fBrk','fWage','fTrans'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); }));
-  $('fDate').addEventListener('change', () => { if (!editing && settings.holidayAuto) setHol(isOffDay($('fDate').value)); preview(); });
-  $('fHolSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ setHol(b.dataset.v === 'on'); preview(); } });
+  ['fStart','fEnd','fBrk','fWage','fTrans','fEnsei'].forEach(id => $(id).addEventListener('input', preview));
+  ['fBrk','fWage','fTrans','fEnsei'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); }));
+  $('fDate').addEventListener('change', preview);
+  $('fJob').addEventListener('change', () => { paintEditor(); preview(); });
+  $('fRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ fRank = b.dataset.v; paintEditor(); preview(); } });
+  $('fAllow').addEventListener('click', e => {
+    const c = e.target.closest('.chip'); if (!c) return; const a = c.dataset.a;
+    if (a === 'meal1') fMeals = fMeals === 1 ? 0 : 1; else if (a === 'meal2') fMeals = fMeals === 2 ? 0 : 2; else if (a === 'rain') fRain = !fRain; else fKake = !fKake;
+    paintEditor(); preview();
+  });
   $('presetChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; const [a, z] = b.dataset.p.split('-'); $('fStart').value = a.padStart(5, '0'); $('fEnd').value = z.padStart(5, '0'); preview(); });
   $('edClose').addEventListener('click', closeEditor);
   $('edCancel').addEventListener('click', closeEditor);
@@ -858,26 +928,34 @@ html.gate-open body{padding-bottom:0}
     if (keep($('sJob'))) $('sJob').value = settings.jobName;
     if (keep($('sWage'))) $('sWage').value = fmt(settings.wage);
     if (keep($('sTrans'))) $('sTrans').value = fmt(settings.transport);
-    if (keep($('sNight'))) $('sNight').value = settings.nightRate;
-    if (keep($('sHol'))) $('sHol').value = settings.holidayRate;
+    $('sJobKind').value = settings.job;
+    segSet('sRankSeg', settings.rank);
+    const tw = tableWage(settings.job, settings.rank);
+    $('sWageNote').textContent = tw != null ? `→ 時給 ${yen(tw)}・時間外 ${yen(Math.round(tw * 1.25))}・深夜加算 ${yen(Math.round(tw * .25))}・最低保証 ${JOBS[settings.job].min}時間（${yen(tw * JOBS[settings.job].min)}）${['S','A','B'].includes(settings.rank) ? '・交通費補助手当 ¥500' : ''}` : '→ 時給は下の「時給（その他のとき）」を使います';
+    segSet('payModeSeg', settings.payMode);
+    segSet('payShiftSeg', settings.payShift ? 'on' : 'off');
+    $('monthlyGrid').hidden = settings.payMode !== 'monthly';
     if (keep($('sPresets'))) $('sPresets').value = settings.presets;
     if (keep($('sLines'))) $('sLines').value = settings.lines.map(fmt).join(', ');
     $('sClose').value = settings.closeDay; $('sPayOff').value = settings.payOffset; $('sPayDay').value = settings.payDay;
-    segSet('holAutoSeg', settings.holidayAuto ? 'on' : 'off');
     segSet('startTabSeg', settings.startTab);
     segSet('weekStartSeg', String(settings.weekStart));
-    $('paydayNote').textContent = `${settings.closeDay ? settings.closeDay + '日' : '月末'}締め、${['当月','翌月','翌々月'][settings.payOffset]}${settings.payDay ? settings.payDay + '日' : '末日'}払い`;
+    $('paydayNote').textContent = (settings.payMode === 'twice' ? '1〜15日の勤務 → 当月25日、16日〜末日の勤務 → 翌月10日に支給' : `${settings.closeDay ? settings.closeDay + '日' : '月末'}締め、${['当月','翌月','翌々月'][settings.payOffset]}${settings.payDay ? settings.payDay + '日' : '末日'}払い`) + (settings.payShift ? '（土日祝は前の営業日）' : '');
   }
   const onNum = (id, key, max, plain) => {
     $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : (plain ? String(v) : fmt(v)); });
     $(id).addEventListener('change', e => { const v = toInt(e.target.value); if (v >= 0 && v <= max){ settings[key] = v; saveSettings(); } else fillSettings(); });
   };
-  onNum('sWage', 'wage', 100000); onNum('sTrans', 'transport', 100000); onNum('sNight', 'nightRate', 200, true); onNum('sHol', 'holidayRate', 200, true);
+  onNum('sWage', 'wage', 100000); onNum('sTrans', 'transport', 100000);
+  $('sJobKind').innerHTML = Object.entries(JOBS).map(([k, j]) => `<option value="${k}">${j.name}</option>`).join('');
+  $('sJobKind').addEventListener('change', e => { settings.job = e.target.value; saveSettings(); });
+  $('sRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.rank = b.dataset.v; saveSettings(); } });
+  $('payModeSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.payMode = b.dataset.v; saveSettings(); } });
+  $('payShiftSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.payShift = b.dataset.v === 'on'; saveSettings(); } });
   $('sJob').addEventListener('change', e => { settings.jobName = e.target.value.trim().slice(0, 30); saveSettings(); });
   $('sPresets').addEventListener('change', e => { settings.presets = e.target.value.replace(/〜|~/g, '-').trim(); saveSettings(); });
   $('sLines').addEventListener('change', e => { settings.lines = e.target.value.split(/[,、\s]+/).map(s => toInt(s)).filter(v => v > 0).slice(0, 8); saveSettings(); });
   [['sClose','closeDay'],['sPayOff','payOffset'],['sPayDay','payDay']].forEach(([id, key]) => $(id).addEventListener('change', e => { settings[key] = +e.target.value; saveSettings(); }));
-  $('holAutoSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.holidayAuto = b.dataset.v === 'on'; saveSettings(); } });
   $('startTabSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.startTab = b.dataset.v; saveSettings(); } });
   $('weekStartSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.weekStart = +b.dataset.v; saveSettings(); } });
   function applyRemoteSettings(o){ settings = normSettings(o); lsSet(LS_SET, JSON.stringify(settings)); fillSettings(); render(); }
@@ -916,9 +994,9 @@ html.gate-open body{padding-bottom:0}
     const list = all().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
     if (!list.length) return say('まだシフトがありません。', 'bad');
     const q = v => { const t = String(v ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    const head = ['日付','開始','終了','休憩(分)','勤務(分)','深夜(分)','時給','休日扱い','給与','交通費','支給日','メモ'];
-    const rows = list.map(sh => { const c = calc(sh), {cy, cm} = periodOf(sh.date), pd = payDateOf(cy, cm);
-      return [sh.date, sh.start, sh.end, +sh.brk || 0, c.work, c.night, sh.wage, sh.holiday ? '休日' : '', c.pay, c.trans, `${pd.y}-${pad(pd.m)}-${pad(pd.d)}`, sh.memo || ''].map(q).join(','); });
+    const head = ['日付','開始','終了','休憩(分)','勤務(分)','時間外(分)','深夜(分)','業務','ランク','時給','最低保証','給与','手当','交通費','支給日','メモ'];
+    const rows = list.map(sh => { const c = calc(sh), pd = periodInfo(sh.date).pay;
+      return [sh.date, sh.start, sh.end, +sh.brk || 0, c.work, c.over, c.night, JOBS[sh.job] ? JOBS[sh.job].name : '', sh.rank || '', sh.wage, c.guaranteed ? '適用' : '', c.base, c.allow, c.trans, `${pd.y}-${pad(pd.m)}-${pad(pd.d)}`, sh.memo || ''].map(q).join(','); });
     const name = `baito-${stamp()}.csv`;
     saveBlob(name, new Blob(['﻿' + [head.join(','), ...rows].join('\r\n')], {type: 'text/csv'}), 'text/csv', () => say(`${list.length} 件を表計算用のファイルにしました（${name}）。`, 'ok'));
   });
@@ -929,7 +1007,7 @@ html.gate-open body{padding-bottom:0}
       let data; try { data = JSON.parse(String(r.result)); } catch(_) { return say('読み込めませんでした。バイト帳で保存したファイルか確認してください。', 'bad'); }
       const src = data && data.shifts; if (!src || typeof src !== 'object') return say('バイト帳のシフトが入っていません。', 'bad');
       let added = 0;
-      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, wage: +x.wage || 0, transport: +x.transport || 0, holiday: !!x.holiday, memo: String(x.memo || '').slice(0, 60)}); added++; } }
+      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, ensei: +x.ensei || 0, memo: String(x.memo || '').slice(0, 60)}); added++; } }
       let setMsg = '';
       if (data.settings && (+data.settings.updatedAt || 0) > settings.updatedAt){ settings = normSettings(data.settings); saveSettings(true); setMsg = '設定も読み込みました。'; }
       render();
