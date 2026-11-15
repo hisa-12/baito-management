@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.4', date: '2026/11/15 21:40' };
+window.APP_VERSION = { no: '2.5', date: '2026/11/15 21:45' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -1118,7 +1118,7 @@ html.gate-open body{padding-bottom:0}
   const scriptText = () => `// バイト帳に送る（Scriptable用）
 // iPhoneのカレンダー「バイト」の予定を、バイト帳に追加します
 const CAL_NAME = "バイト";   // カレンダーの名前
-const DAYS_BACK = 14;        // 何日前の予定から
+const FROM = [2026, 9, 1];   // この日の予定から（バイトを始めた日：年, 月, 日）
 const DAYS_AHEAD = 90;       // 何日後の予定まで
 const APP_URL = "${location.origin + location.pathname}";
 
@@ -1130,7 +1130,7 @@ if (!cal) {
   a.addAction("OK");
   await a.present();
 } else {
-  const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - DAYS_BACK);
+  const from = new Date(FROM[0], FROM[1] - 1, FROM[2]);
   const to = new Date(); to.setDate(to.getDate() + DAYS_AHEAD);
   const pad = n => String(n).padStart(2, "0");
   const ymd = x => x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
