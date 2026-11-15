@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.1', date: '2026/11/13 20:40' };
+window.APP_VERSION = { no: '2.2', date: '2026/11/15 00:30' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -145,6 +145,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .shift .pay b{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--teal);font-variant-numeric:tabular-nums}
 .shift .dl{font-size:12px;font-weight:700;color:var(--muted)}
 .shift.future .tm,.shift.future .pay b{opacity:.75}
+.shift.imp{justify-content:flex-start;cursor:pointer}
+.shift.imp input{width:20px;height:20px;accent-color:var(--teal);flex:none;margin:0}
+.shift.imp > div:nth-child(2){flex:1;min-width:0}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
 .empty-note{padding:14px;color:var(--muted);font-size:14px;text-align:center}
 
 /* tables */
@@ -446,6 +450,22 @@ html.gate-open body{padding-bottom:0}
       </div>
     </section>
 
+    <section id="calSec">
+      <h2>カレンダーから読み込み</h2>
+      <div class="backup">
+        <p class="msg">iPhoneのカレンダー「バイト」の予定を、Scriptableアプリを使ってバイト帳に追加できます。予定の「詳細」にある「業務内容：〜」から業務も自動で選びます。</p>
+        <ol class="msg steps">
+          <li>下のボタンでスクリプトをコピーする</li>
+          <li>Scriptableを開き、右上の「＋」→ 貼り付け → 名前を「バイト帳に送る」にする</li>
+          <li>スクリプトを実行する（はじめての時はカレンダーへのアクセスを「許可」）</li>
+          <li>Safariでバイト帳が開くので、確認画面で「追加する」を押す</li>
+        </ol>
+        <p class="msg">※ Safariで開くので、Safariでも一度ログインしておいてください（ホーム画面のバイト帳には同期で反映されます）。</p>
+        <button class="btn primary" id="copyScript" type="button">Scriptable用のスクリプトをコピー</button>
+        <p class="msg" id="copyMsg" aria-live="polite"></p>
+      </div>
+    </section>
+
     <section id="syncSec">
       <h2>同期</h2>
       <div class="backup sync">
@@ -525,6 +545,16 @@ html.gate-open body{padding-bottom:0}
       <button class="btn" id="edCancel" type="button">やめる</button>
       <button class="del" id="edDel" type="button" hidden>このシフトを削除</button>
     </div>
+  </div>
+</div>
+
+<!-- カレンダーから読み込み -->
+<div class="sheet" id="impSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+    <div class="ed-head"><b id="impTitle">カレンダーから読み込み</b><button class="btn" id="impClose" type="button">閉じる</button></div>
+    <p class="hint" id="impNote"></p>
+    <div id="impList" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="ed-actions"><button class="btn primary" id="impOk" type="button">追加する</button><button class="btn" id="impCancel" type="button">やめる</button></div>
   </div>
 </div>
 
@@ -692,10 +722,10 @@ html.gate-open body{padding-bottom:0}
 
   /* ---- 元に戻す ---- */
   const undoStack = [];
-  function remember(label, ids){
+  function remember(label, ids, done){
     undoStack.push({label, before: ids.map(id => [id, shifts[id] ? JSON.parse(JSON.stringify(shifts[id])) : null])});
     if (undoStack.length > 30) undoStack.shift();
-    setTimeout(() => showToast(`${label}しました`, true), 0);
+    setTimeout(() => showToast(done || `${label}しました`, true), 0);
   }
   function undo(){
     const st = undoStack.pop(); if (!st) return;
@@ -962,7 +992,7 @@ html.gate-open body{padding-bottom:0}
 
   /* 設定の各項目は折りたたみ（タイトルをタップで開く） */
   (() => {
-    for (const id of ['themeSec','paySec','paydaySec','lineSec','viewSec','syncSec','backupSec']){
+    for (const id of ['themeSec','paySec','paydaySec','lineSec','viewSec','calSec','syncSec','backupSec']){
       const sec = $(id), h = sec && sec.querySelector(':scope > h2'); if (!h) continue;
       const body = document.createElement('div'); body.id = id + 'Body'; body.hidden = true;
       while (h.nextSibling) body.appendChild(h.nextSibling);
@@ -1015,6 +1045,112 @@ html.gate-open body{padding-bottom:0}
     };
     r.onerror = () => say('ファイルを開けませんでした。', 'bad');
     r.readAsText(f); e.target.value = '';
+  });
+
+  /* ---- カレンダーから読み込み（Scriptableから #import=… で受け取る） ---- */
+  let authResolved = false;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function waitSync(){ for (let i = 0; i < 50 && (!authResolved || (cloud && !cloud.ready)); i++) await sleep(200); }
+  // 「業務内容」の文字から給料表の業務を選ぶ
+  function jobFromText(t){
+    t = t || '';
+    if (/警備/.test(t)) return 'guard';
+    if (/ケータリング|ランナー/.test(t)) return 'cater';
+    const su = /設営/.test(t), te = /撤去/.test(t), an = /案内/.test(t);
+    if ((su && te) || ((su || te) && an)) return 'setup';
+    if (su || te) return 'single';
+    if (/案内|グッズ|物販|事務|クローク|軽作業|ステージハンド/.test(t)) return 'guide';
+    return settings.job;
+  }
+  let impItems = [];
+  function readImport(){
+    const m = location.hash.match(/^#import=([A-Za-z0-9_-]*)/); if (!m) return;
+    try { history.replaceState(null, '', location.pathname); } catch(_) {}
+    let list;
+    try {
+      const b = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+      list = JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0))));
+    } catch(_) { return showToast('カレンダーのデータを読み込めませんでした', false); }
+    if (!Array.isArray(list)) return;
+    impItems = list.filter(x => x && typeof x.k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.d) && /^\d{2}:\d{2}$/.test(x.s) && /^\d{2}:\d{2}$/.test(x.e) && x.s !== x.e)
+      .map(x => {
+        const id = 'c' + x.k.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60);
+        const old = shifts[id];
+        const dup = !old && all().some(o => o.date === x.d && o.start === x.s);
+        const status = old ? (old.date === x.d && old.start === x.s && old.end === x.e ? 'same' : 'changed') : dup ? 'dup' : 'new';
+        const job = jobFromText(x.w || x.t);
+        const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
+        const sh = old ? {...old, date: x.d, start: x.s, end: x.e}
+          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, ensei: 0, memo};
+        return {sh, old, status, on: status === 'new' || status === 'changed'};
+      }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
+    const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
+    if (!show.length) return showToast(impItems.length ? `新しい予定はありませんでした（${same}件は登録済み）` : 'カレンダーにバイトの予定がありませんでした', false);
+    $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。休憩は0分で入るので、あとで直してください。カレンダーから消えた予定は、バイト帳からは消えません。`;
+    $('impList').innerHTML = show.map(x => {
+      const i = impItems.indexOf(x), c = calc(x.sh);
+      const tag = x.status === 'new' ? '<span class="tag p">新規</span>' : x.status === 'changed' ? `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>` : '<span class="tag h">同じ時間のシフトあり</span>';
+      return `<label class="shift imp"><input type="checkbox" data-i="${i}"${x.on ? ' checked' : ''}><div><div class="dl">${dayLabel(x.sh.date)}${tag}</div><div class="tm">${x.sh.start}〜${x.sh.end}</div>`
+        + `<div class="sb">${jobLabel(x.sh)}${esc(x.sh.memo || '')}</div></div><div class="pay"><b>${yen(c.pay)}</b></div></label>`;
+    }).join('');
+    paintImpOk();
+    $('impSheet').hidden = false;
+  }
+  function paintImpOk(){ const n = impItems.filter(x => x.on).length; $('impOk').disabled = !n; $('impOk').textContent = n ? `${n}件を追加する` : '追加する'; }
+  $('impList').addEventListener('change', e => { const cb = e.target.closest('input[data-i]'); if (cb){ impItems[+cb.dataset.i].on = cb.checked; paintImpOk(); } });
+  const closeImport = () => { $('impSheet').hidden = true; impItems = []; };
+  $('impClose').addEventListener('click', closeImport);
+  $('impCancel').addEventListener('click', closeImport);
+  $('impOk').addEventListener('click', async () => {
+    const sel = impItems.filter(x => x.on); if (!sel.length) return;
+    $('impOk').disabled = true; $('impOk').textContent = '保存中…';
+    await waitSync();   // ログインの準備ができてから保存（同期の取りこぼしを防ぐ）
+    remember('カレンダーから読み込み', sel.map(x => x.sh.id), `カレンダーから${sel.length}件を追加しました`);
+    sel.forEach(x => putShift(x.sh));
+    calSel = sel[0].sh.date; const [y, m] = calSel.split('-').map(Number); calY = y; calM = m - 1;
+    closeImport(); showTab('cal'); render();
+  });
+  window.addEventListener('hashchange', readImport);
+
+  // Scriptable用のスクリプト（このページのURLを自動で入れる）
+  const scriptText = () => `// バイト帳に送る（Scriptable用）
+// iPhoneのカレンダー「バイト」の予定を、バイト帳に追加します
+const CAL_NAME = "バイト";   // カレンダーの名前
+const DAYS_BACK = 14;        // 何日前の予定から
+const DAYS_AHEAD = 90;       // 何日後の予定まで
+const APP_URL = "${location.origin + location.pathname}";
+
+const cal = (await Calendar.forEvents()).find(c => c.title === CAL_NAME);
+if (!cal) {
+  const a = new Alert();
+  a.title = "カレンダーが見つかりません";
+  a.message = "「" + CAL_NAME + "」という名前のカレンダーがありません。";
+  a.addAction("OK");
+  await a.present();
+} else {
+  const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - DAYS_BACK);
+  const to = new Date(); to.setDate(to.getDate() + DAYS_AHEAD);
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = x => x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
+  const hm = x => pad(x.getHours()) + ":" + pad(x.getMinutes());
+  const list = (await CalendarEvent.between(from, to, [cal])).filter(e => !e.isAllDay).map(e => {
+    const w = ((e.notes || "").match(/業務内容\\s*[:：]\\s*(.+)/) || [])[1] || "";
+    return {
+      k: (e.identifier || "").replace(/[^A-Za-z0-9]/g, "").slice(-40) + "_" + ymd(e.startDate).replace(/-/g, ""),
+      d: ymd(e.startDate), s: hm(e.startDate), e: hm(e.endDate),
+      t: (e.title || "").slice(0, 40), l: (e.location || "").split("\\n")[0].slice(0, 30), w: w.trim().slice(0, 30)
+    };
+  });
+  const b64 = Data.fromString(JSON.stringify(list)).toBase64String().replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+  Safari.open(APP_URL + "#import=" + b64);
+}
+Script.complete();
+`;
+  $('copyScript').addEventListener('click', async () => {
+    const t = scriptText(), m = $('copyMsg');
+    try { await navigator.clipboard.writeText(t); }
+    catch(_) { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+    m.textContent = 'コピーしました。Scriptableで貼り付けてください。'; m.className = 'msg ok';
   });
 
   /* ---- 外観モード ---- */
@@ -1076,7 +1212,7 @@ html.gate-open body{padding-bottom:0}
     const CFG = window.FIREBASE_CONFIG;
     const show = id => ['syncOff','loginForm','syncOn'].forEach(x => { $(x).hidden = x !== id; });
     const msg = (t, bad) => { const m = $('syncMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' bad' : t ? ' ok' : ''); };
-    if (!CFG || !CFG.apiKey || !window.firebase){ show('syncOff'); setStatus('この端末に保存中'); return; }
+    if (!CFG || !CFG.apiKey || !window.firebase){ show('syncOff'); setStatus('この端末に保存中'); authResolved = true; return; }
     firebase.initializeApp(CFG);
     const auth = firebase.auth(), db = firebase.firestore();
     try { db.enablePersistence({synchronizeTabs: true}).catch(() => {}); } catch(_) {}
@@ -1158,7 +1294,7 @@ html.gate-open body{padding-bottom:0}
       if (!user){
         if (wasIn) for (const id of ['syncEmail','syncPass']){ const el = $(id), c = el.cloneNode(false); c.value = ''; el.replaceWith(c); }
         wasIn = false; msg(''); resetAutoLogin();
-        show('loginForm'); setStatus('未ログイン・この端末に保存中');
+        show('loginForm'); setStatus('未ログイン・この端末に保存中'); authResolved = true;
         if (!gateSkipped && lsGet(LS_NOGATE) !== '1') setGate(true);
         return;
       }
@@ -1175,7 +1311,7 @@ html.gate-open body{padding-bottom:0}
         for (let i = 0; i < mine.length; i += 400){ const b = db.batch(); mine.slice(i, i + 400).forEach(x => b.set(col.doc(x.id), x)); await b.commit(); }
       } catch(e){ syncErr(); }
       if (cloud !== me) return;   // その間にログアウトした
-      me.ready = true;
+      me.ready = true; authResolved = true;
       let first = true, lastSnap = null;
       const showState = snap => {
         const m = snap.metadata;
@@ -1206,6 +1342,7 @@ html.gate-open body{padding-bottom:0}
   showTab(settings.startTab);
   fillSettings();
   render();
+  readImport();
 })();
 </script>
 </body>
