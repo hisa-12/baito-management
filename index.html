@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.2', date: '2026/11/15 00:30' };
+window.APP_VERSION = { no: '2.4', date: '2026/11/15 21:40' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -459,6 +459,7 @@ html.gate-open body{padding-bottom:0}
           <li>Scriptableを開き、右上の「＋」→ 貼り付け → 名前を「バイト帳に送る」にする</li>
           <li>スクリプトを実行する（はじめての時はカレンダーへのアクセスを「許可」）</li>
           <li>Safariでバイト帳が開くので、確認画面で「追加する」を押す</li>
+          <li>予定の詳細かタイトルに「ココ特」と書いてあれば、ココ特！手当（3,000円）も自動でオンになります</li>
         </ol>
         <p class="msg">※ Safariで開くので、Safariでも一度ログインしておいてください（ホーム画面のバイト帳には同期で反映されます）。</p>
         <button class="btn primary" id="copyScript" type="button">Scriptable用のスクリプトをコピー</button>
@@ -530,7 +531,7 @@ html.gate-open body{padding-bottom:0}
       <div class="field"><label for="fTrans">交通費補助（円）</label><input id="fTrans" inputmode="numeric" autocomplete="off"></div>
       <div class="field wide"><label>手当</label><div class="chips" id="fAllow">
         <button class="chip" type="button" data-a="meal1">食事なし 1食 ¥800</button><button class="chip" type="button" data-a="meal2">食事なし 2食 ¥1,600</button>
-        <button class="chip" type="button" data-a="rain">雨天 ¥500</button><button class="chip" type="button" data-a="kake">掛け持ち ¥500</button></div></div>
+        <button class="chip" type="button" data-a="rain">雨天 ¥500</button><button class="chip" type="button" data-a="kake">掛け持ち ¥500</button><button class="chip" type="button" data-a="koko">ココ特！ ¥3,000</button></div></div>
       <div class="field"><label for="fEnsei">遠征手当（円）</label><input id="fEnsei" inputmode="numeric" autocomplete="off" placeholder="0"></div>
       <div class="field wide"><label for="fMemo">メモ</label><input id="fMemo" maxlength="60" autocomplete="off" placeholder="なくてもOK" style="font-weight:500"></div>
     </div>
@@ -613,7 +614,7 @@ html.gate-open body{padding-bottom:0}
     other:  {name: 'その他（時給を入力）',   min: 0, w: null},
   };
   const RANKS = ['S','A','B','C'];
-  const OT_RATE = .25, NIGHT_RATE = .25, MEAL = 800, RAIN = 500, KAKE = 500, RANK_BONUS = 500;
+  const OT_RATE = .25, NIGHT_RATE = .25, MEAL = 800, RAIN = 500, KAKE = 500, KOKO = 3000, RANK_BONUS = 500;
   const tableWage = (job, rank) => JOBS[job] && JOBS[job].w ? JOBS[job].w[rank] : null;
   const jobLabel = sh => JOBS[sh.job] && sh.job !== 'other' ? `${JOBS[sh.job].name}（${sh.rank}）・` : '';
   const LINE_NAMES = {1360000: '税の扶養（19〜22歳以外）', 1500000: '社会保険の扶養（交通費込み）', 1590000: '税の扶養（19〜22歳）'};
@@ -669,7 +670,7 @@ html.gate-open body{padding-bottom:0}
     const minH = JOBS[sh.job] ? JOBS[sh.job].min : 0;
     let guaranteed = false;
     if (minH && work < minH * 60 && wage * minH > base){ base = wage * minH; guaranteed = true; }
-    const allow = (+sh.meals || 0) * MEAL + (sh.rain ? RAIN : 0) + (sh.kake ? KAKE : 0) + (+sh.ensei || 0);
+    const allow = (+sh.meals || 0) * MEAL + (sh.rain ? RAIN : 0) + (sh.kake ? KAKE : 0) + (sh.koko ? KOKO : 0) + (+sh.ensei || 0);
     const bonus = ['S','A','B'].includes(sh.rank) ? RANK_BONUS : 0;
     return { work, night: rn + on, over: od + on, base, allow, pay: base + allow, guaranteed, minH, bonus, trans: (+sh.transport || 0) + bonus };
   }
@@ -757,7 +758,7 @@ html.gate-open body{padding-bottom:0}
   const shiftsOn = k => all().filter(s => s.date === k).sort((a,b) => a.start.localeCompare(b.start));
   const shiftsInMonth = (y, m0) => { const p = `${y}-${pad(m0+1)}-`; return all().filter(s => s.date.startsWith(p)).sort((a,b) => (a.date + a.start).localeCompare(b.date + b.start)); };
   const wkOff = d => (d.getDay() - settings.weekStart + 7) % 7;
-  const tagsOf = (sh, c) => (c.guaranteed ? '<span class="tag">最低保証</span>' : '') + (c.over ? '<span class="tag h">時間外</span>' : '') + (c.night ? '<span class="tag n">深夜</span>' : '') + (c.allow ? '<span class="tag">手当</span>' : '') + (sh.date > today() ? '<span class="tag p">予定</span>' : '');
+  const tagsOf = (sh, c) => (c.guaranteed ? '<span class="tag">最低保証</span>' : '') + (c.over ? '<span class="tag h">時間外</span>' : '') + (c.night ? '<span class="tag n">深夜</span>' : '') + (sh.koko ? '<span class="tag">ココ特！</span>' : '') + (c.allow ? '<span class="tag">手当</span>' : '') + (sh.date > today() ? '<span class="tag p">予定</span>' : '');
 
   function render(){
     $('jobName').textContent = settings.jobName;
@@ -863,11 +864,11 @@ html.gate-open body{padding-bottom:0}
   $('yearNext').addEventListener('click', () => { sumYear++; renderSum(); });
 
   /* ---- シフトの入力・編集 ---- */
-  let editing = null, fRank = 'C', fMeals = 0, fRain = false, fKake = false;
+  let editing = null, fRank = 'C', fMeals = 0, fRain = false, fKake = false, fKoko = false;
   $('fJob').innerHTML = Object.entries(JOBS).map(([k, j]) => `<option value="${k}">${j.name}${j.min ? `（最低${j.min}時間）` : ''}</option>`).join('');
   function paintEditor(){
     document.querySelectorAll('#fRankSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === fRank ? 'true' : 'false'));
-    document.querySelectorAll('#fAllow .chip').forEach(c => { const a = c.dataset.a; c.classList.toggle('on', a === 'meal1' ? fMeals === 1 : a === 'meal2' ? fMeals === 2 : a === 'rain' ? fRain : fKake); });
+    document.querySelectorAll('#fAllow .chip').forEach(c => { const a = c.dataset.a; c.classList.toggle('on', a === 'meal1' ? fMeals === 1 : a === 'meal2' ? fMeals === 2 : a === 'rain' ? fRain : a === 'koko' ? fKoko : fKake); });
     const tw = tableWage($('fJob').value, fRank);
     if (tw != null) $('fWage').value = fmt(tw);
     $('fWage').readOnly = tw != null;
@@ -886,7 +887,7 @@ html.gate-open body{padding-bottom:0}
     $('fBrk').value = sh ? (+sh.brk || 0) : 0;
     $('fJob').value = sh ? (JOBS[sh.job] ? sh.job : 'other') : settings.job;
     fRank = sh ? (RANKS.includes(sh.rank) ? sh.rank : settings.rank) : settings.rank;
-    fMeals = sh ? (+sh.meals || 0) : 0; fRain = sh ? !!sh.rain : false; fKake = sh ? !!sh.kake : false;
+    fMeals = sh ? (+sh.meals || 0) : 0; fRain = sh ? !!sh.rain : false; fKake = sh ? !!sh.kake : false; fKoko = sh ? !!sh.koko : false;
     $('fWage').value = fmt(sh ? sh.wage : (tableWage(settings.job, settings.rank) ?? settings.wage));
     $('fTrans').value = fmt(sh ? (sh.transport || 0) : settings.transport);
     $('fEnsei').value = sh && +sh.ensei ? fmt(sh.ensei) : '';
@@ -902,7 +903,7 @@ html.gate-open body{padding-bottom:0}
     return { id: editing ? editing.id : 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       date: $('fDate').value, start: $('fStart').value, end: $('fEnd').value,
       brk: toInt($('fBrk').value) || 0, job: $('fJob').value, rank: fRank, wage: toInt($('fWage').value) || 0, transport: toInt($('fTrans').value) || 0,
-      meals: fMeals, rain: fRain, kake: fKake, ensei: toInt($('fEnsei').value) || 0, memo: $('fMemo').value.trim().slice(0, 60) };
+      meals: fMeals, rain: fRain, kake: fKake, koko: fKoko, ensei: toInt($('fEnsei').value) || 0, memo: $('fMemo').value.trim().slice(0, 60) };
   }
   function preview(){
     const sh = formShift();
@@ -921,7 +922,7 @@ html.gate-open body{padding-bottom:0}
   $('fRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ fRank = b.dataset.v; paintEditor(); preview(); } });
   $('fAllow').addEventListener('click', e => {
     const c = e.target.closest('.chip'); if (!c) return; const a = c.dataset.a;
-    if (a === 'meal1') fMeals = fMeals === 1 ? 0 : 1; else if (a === 'meal2') fMeals = fMeals === 2 ? 0 : 2; else if (a === 'rain') fRain = !fRain; else fKake = !fKake;
+    if (a === 'meal1') fMeals = fMeals === 1 ? 0 : 1; else if (a === 'meal2') fMeals = fMeals === 2 ? 0 : 2; else if (a === 'rain') fRain = !fRain; else if (a === 'koko') fKoko = !fKoko; else fKake = !fKake;
     paintEditor(); preview();
   });
   $('presetChips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; const [a, z] = b.dataset.p.split('-'); $('fStart').value = a.padStart(5, '0'); $('fEnd').value = z.padStart(5, '0'); preview(); });
@@ -1037,7 +1038,7 @@ html.gate-open body{padding-bottom:0}
       let data; try { data = JSON.parse(String(r.result)); } catch(_) { return say('読み込めませんでした。バイト帳で保存したファイルか確認してください。', 'bad'); }
       const src = data && data.shifts; if (!src || typeof src !== 'object') return say('バイト帳のシフトが入っていません。', 'bad');
       let added = 0;
-      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, ensei: +x.ensei || 0, memo: String(x.memo || '').slice(0, 60)}); added++; } }
+      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, koko: !!x.koko, ensei: +x.ensei || 0, memo: String(x.memo || '').slice(0, 60)}); added++; } }
       let setMsg = '';
       if (data.settings && (+data.settings.updatedAt || 0) > settings.updatedAt){ settings = normSettings(data.settings); saveSettings(true); setMsg = '設定も読み込みました。'; }
       render();
@@ -1077,19 +1078,20 @@ html.gate-open body{padding-bottom:0}
         const id = 'c' + x.k.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60);
         const old = shifts[id];
         const dup = !old && all().some(o => o.date === x.d && o.start === x.s);
-        const status = old ? (old.date === x.d && old.start === x.s && old.end === x.e ? 'same' : 'changed') : dup ? 'dup' : 'new';
+        const koko = !!x.c, timeSame = old && old.date === x.d && old.start === x.s && old.end === x.e, kokoNew = old && koko && !old.koko;
+        const status = old ? (timeSame && !kokoNew ? 'same' : 'changed') : dup ? 'dup' : 'new';
         const job = jobFromText(x.w || x.t);
         const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
-        const sh = old ? {...old, date: x.d, start: x.s, end: x.e}
-          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, ensei: 0, memo};
-        return {sh, old, status, on: status === 'new' || status === 'changed'};
+        const sh = old ? {...old, date: x.d, start: x.s, end: x.e, koko: !!old.koko || koko}
+          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, memo};
+        return {sh, old, status, timeSame, on: status === 'new' || status === 'changed'};
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
     if (!show.length) return showToast(impItems.length ? `新しい予定はありませんでした（${same}件は登録済み）` : 'カレンダーにバイトの予定がありませんでした', false);
     $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。休憩は0分で入るので、あとで直してください。カレンダーから消えた予定は、バイト帳からは消えません。`;
     $('impList').innerHTML = show.map(x => {
       const i = impItems.indexOf(x), c = calc(x.sh);
-      const tag = x.status === 'new' ? '<span class="tag p">新規</span>' : x.status === 'changed' ? `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>` : '<span class="tag h">同じ時間のシフトあり</span>';
+      const tag = x.status === 'new' ? '<span class="tag p">新規</span>' : x.status === 'changed' ? (x.timeSame ? '<span class="tag">ココ特！を追加</span>' : `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>`) : '<span class="tag h">同じ時間のシフトあり</span>';
       return `<label class="shift imp"><input type="checkbox" data-i="${i}"${x.on ? ' checked' : ''}><div><div class="dl">${dayLabel(x.sh.date)}${tag}</div><div class="tm">${x.sh.start}〜${x.sh.end}</div>`
         + `<div class="sb">${jobLabel(x.sh)}${esc(x.sh.memo || '')}</div></div><div class="pay"><b>${yen(c.pay)}</b></div></label>`;
     }).join('');
@@ -1134,11 +1136,13 @@ if (!cal) {
   const ymd = x => x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
   const hm = x => pad(x.getHours()) + ":" + pad(x.getMinutes());
   const list = (await CalendarEvent.between(from, to, [cal])).filter(e => !e.isAllDay).map(e => {
-    const w = ((e.notes || "").match(/業務内容\\s*[:：]\\s*(.+)/) || [])[1] || "";
+    const notes = e.notes || "";
+    const w = (notes.match(/業務内容\\s*[:：]\\s*(.+)/) || [])[1] || "";
     return {
       k: (e.identifier || "").replace(/[^A-Za-z0-9]/g, "").slice(-40) + "_" + ymd(e.startDate).replace(/-/g, ""),
       d: ymd(e.startDate), s: hm(e.startDate), e: hm(e.endDate),
-      t: (e.title || "").slice(0, 40), l: (e.location || "").split("\\n")[0].slice(0, 30), w: w.trim().slice(0, 30)
+      t: (e.title || "").slice(0, 40), l: (e.location || "").split("\\n")[0].slice(0, 30), w: w.trim().slice(0, 30),
+      c: /ココ特/.test(notes + " " + (e.title || "")) ? 1 : 0
     };
   });
   const b64 = Data.fromString(JSON.stringify(list)).toBase64String().replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
