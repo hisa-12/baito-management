@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.5', date: '2026/11/15 21:45' };
+window.APP_VERSION = { no: '2.6', date: '2026/11/15 22:00' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -125,6 +125,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 :root[data-theme="dark"] .cal-d .dv{color:#0f1715}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cal-d .dv{color:#0f1715}}
 .cal-d .dv.plan{background:transparent;color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+:root[data-theme="dark"] .cal-d .dv.plan{color:var(--teal)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cal-d .dv.plan{color:var(--teal)}}
 .cal-d.out{opacity:.4}
 .cal-d.today{border-color:var(--coin)}
 .cal-d.sel{border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
