@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.8', date: '2026/11/16 18:00' };
+window.APP_VERSION = { no: '2.9', date: '2026/11/16 17:55' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -127,7 +127,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .cal-d .dv.plan{background:transparent;color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
 :root[data-theme="dark"] .cal-d .dv.plan{color:var(--teal)}
 .cal-d .dv.txt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;word-break:break-all;white-space:normal;letter-spacing:-.05em;max-height:2.4em;overflow:hidden;text-overflow:clip}
-#calViewSeg button{padding:6px 2px;font-size:12px}
+#calViewSeg button,#moneySeg button{padding:6px 2px;font-size:12px}
+.result.wide2{grid-column:1/-1}
+.shift .pay .ml{font-size:11px;color:var(--muted)}
+.pos{color:var(--teal)} .neg{color:var(--danger)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cal-d .dv.plan{color:var(--teal)}}
 .cal-d.out{opacity:.4}
 .cal-d.today{border-color:var(--coin)}
@@ -338,6 +341,9 @@ html.gate-open body{padding-bottom:0}
       <div class="seg seg-wide" id="calViewSeg" role="group" aria-label="カレンダーに出すもの">
         <button type="button" data-v="time">時間</button><button type="button" data-v="pay">給料</button><button type="button" data-v="work">勤務時間</button><button type="button" data-v="title">公演名</button><button type="button" data-v="job">業務</button>
       </div>
+      <div class="seg seg-wide" id="moneySeg" role="group" aria-label="金額の出し方">
+        <button type="button" data-v="pay">給与のみ</button><button type="button" data-v="trans">交通費込み</button><button type="button" data-v="net">実質</button>
+      </div>
       <div class="cal-grid" id="calGrid"></div>
     </section>
     <section class="card" id="dayBox"></section>
@@ -400,7 +406,9 @@ html.gate-open body{padding-bottom:0}
           <div class="pref-grid">
             <label>交通費補助（1現場・円）<input id="sTrans" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
             <label>時給（「その他」のとき）<input id="sWage" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
+            <label>いつもの実際の交通費（円）<input id="sCost" class="pref-text num" inputmode="numeric" autocomplete="off" placeholder="なし"></label>
           </div>
+          <p class="hint">「いつもの実際の交通費」を入れると、新しいシフトの「実際の交通費」に最初から入ります（現場ごとに違うときは、シフトで直してください）。</p>
           <p class="hint">給料表（2026年10月1日現在）どおりに自動で計算します：勤務時間は15分単位（端数は切り捨て）／8時間を超えた分は時間外（25%増）／22〜翌5時は深夜加算（25%）／最低保証時間より短いときは最低保証料／Bランク以上は交通費補助手当500円を自動でプラス。ランクを変えても、これまでのシフトの時給は変わりません。</p>
         </div>
         <div class="pref-row">
@@ -534,17 +542,19 @@ html.gate-open body{padding-bottom:0}
       <div class="field wide"><label for="fJob">業務</label><select id="fJob" class="pref-sel" style="width:100%"></select></div>
       <div class="field"><label>ランク</label><div class="seg seg-wide" id="fRankSeg" role="group" aria-label="ランク"><button type="button" data-v="S">S</button><button type="button" data-v="A">A</button><button type="button" data-v="B">B</button><button type="button" data-v="C">C</button></div></div>
       <div class="field"><label for="fWage">時給（円）</label><input id="fWage" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label for="fTrans">交通費補助（円）</label><input id="fTrans" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="fTrans">支給の交通費（円）</label><input id="fTrans" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="fCost">実際の交通費（円）</label><input id="fCost" inputmode="numeric" autocomplete="off" placeholder="未入力"></div>
       <div class="field wide"><label>手当</label><div class="chips" id="fAllow">
         <button class="chip" type="button" data-a="meal1">食事なし 1食 ¥800</button><button class="chip" type="button" data-a="meal2">食事なし 2食 ¥1,600</button>
         <button class="chip" type="button" data-a="rain">雨天 ¥500</button><button class="chip" type="button" data-a="kake">掛け持ち ¥500</button><button class="chip" type="button" data-a="koko">ココ特！ ¥3,000</button></div></div>
+      <div class="field"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
       <div class="field"><label for="fEnsei">遠征手当（円）</label><input id="fEnsei" inputmode="numeric" autocomplete="off" placeholder="0"></div>
       <div class="field wide"><label for="fMemo">メモ</label><input id="fMemo" maxlength="60" autocomplete="off" placeholder="なくてもOK" style="font-weight:500"></div>
     </div>
     <div class="result-row">
       <div class="result"><span class="lbl">勤務時間</span><span class="big" id="pvWork">—</span></div>
       <div class="result netbox"><span class="lbl">給与＋手当</span><span class="big" id="pvPay">—</span></div>
+      <div class="result netbox wide2"><span class="lbl">実質もらえる額（給与＋手当＋交通費の差額。実費が未入力なら差額0）</span><span class="big" id="pvNet">—</span></div>
     </div>
     <p class="hint" id="pvSub"></p>
     <p class="err" id="edErr" hidden></p>
@@ -644,6 +654,8 @@ html.gate-open body{padding-bottom:0}
       lines: Array.isArray(o.lines) && o.lines.join() !== '1230000,1500000,1600000' ? o.lines.map(Number).filter(v => v > 0).slice(0, 8) : [1360000, 1500000, 1590000],
       startTab: ['cal','list','sum','set'].includes(o.startTab) ? o.startTab : 'cal',
       weekStart: n(o.weekStart, 0, 0, 6),
+      cost: n(o.cost, 0, 0, 100000),
+      moneyView: ['pay','trans','net'].includes(o.moneyView) ? o.moneyView : 'pay',
       calView: ['time','pay','work','title','job'].includes(o.calView) ? o.calView : 'time',
       updatedAt: +o.updatedAt || 0,
     };
@@ -680,9 +692,20 @@ html.gate-open body{padding-bottom:0}
     if (minH && work < minH * 60 && wage * minH > base){ base = wage * minH; guaranteed = true; }
     const allow = (+sh.meals || 0) * MEAL + (sh.rain ? RAIN : 0) + (sh.kake ? KAKE : 0) + (sh.koko ? KOKO : 0) + (+sh.ensei || 0);
     const bonus = ['S','A','B'].includes(sh.rank) ? RANK_BONUS : 0;
-    return { work, night: rn + on, over: od + on, base, allow, pay: base + allow, guaranteed, minH, bonus, trans: (+sh.transport || 0) + bonus };
+    const trans = (+sh.transport || 0) + bonus;
+    const cost = sh.cost == null || sh.cost === '' ? null : (+sh.cost || 0);   // 実際にかかった交通費（未入力は null）
+    return { work, night: rn + on, over: od + on, base, allow, pay: base + allow, guaranteed, minH, bonus, trans, cost,
+      diff: cost == null ? null : trans - cost, net: base + allow + (cost == null ? 0 : trans - cost) };   // 実費が未入力なら差額0とみなす
   }
-  const sumOf = list => list.reduce((a, sh) => { const c = calc(sh); a.days++; a.work += c.work; a.pay += c.pay; a.trans += c.trans; return a; }, {days:0, work:0, pay:0, trans:0});
+  const sumOf = list => list.reduce((a, sh) => { const c = calc(sh); a.days++; a.work += c.work; a.pay += c.pay; a.trans += c.trans; a.cost += c.cost || 0; a.diff += c.diff || 0; a.net += c.net; if (c.cost == null) a.noCost++; return a; }, {days:0, work:0, pay:0, trans:0, cost:0, diff:0, net:0, noCost:0});
+  // カレンダーの金額の出し方（給与のみ／交通費込み／実質）
+  const MONEY_LABEL = {pay: '給与', trans: '給与＋交通費', net: '実質'};
+  const moneyOf = c => settings.moneyView === 'trans' ? c.pay + c.trans : settings.moneyView === 'net' ? c.net : c.pay;
+  const signed = n => (n < 0 ? '−' : '+') + yen(Math.abs(n));
+  const transLine = c => `交通費 ${yen(c.trans)}` + (c.cost == null ? '・実費未入力' : `・実費 ${yen(c.cost)}（<span class="${c.diff < 0 ? 'neg' : 'pos'}">${signed(c.diff)}</span>）`);
+  function payCol(c){
+    return `<div class="pay"><div class="ml">${MONEY_LABEL[settings.moneyView]}</div><b>${yen(moneyOf(c))}</b></div>`;
+  }
 
   /* ---- 締め日・給料日 ---- */
   // 勤務日 → 締めの区切り（key）、勤務期間の表示、支給日
@@ -776,7 +799,7 @@ html.gate-open body{padding-bottom:0}
     return w.split(/\s+/)[0] || JOB_SHORT[sh.job] || ''; };
   function cellText(sh, k, t){
     const c = calc(sh), v = settings.calView;
-    const txt = v === 'pay' ? compact(c.pay) : v === 'work' ? hmShort(c.work) : v === 'title' ? esc(titleOf(sh) || '—') : v === 'job' ? esc(workOf(sh) || '—') : `${shortT(sh.start)}-<wbr>${shortT(sh.end)}`;
+    const txt = v === 'pay' ? compact(moneyOf(c)) : v === 'work' ? hmShort(c.work) : v === 'title' ? esc(titleOf(sh) || '—') : v === 'job' ? esc(workOf(sh) || '—') : `${shortT(sh.start)}-<wbr>${shortT(sh.end)}`;
     return `<span class="dv${k > t ? ' plan' : ''}${v === 'title' || v === 'job' ? ' txt' : ''}">${txt}</span>`;
   }
   const tagsOf = (sh, c) => (c.guaranteed ? '<span class="tag">最低保証</span>' : '') + (c.over ? '<span class="tag h">時間外</span>' : '') + (c.night ? '<span class="tag n">深夜</span>' : '') + (sh.koko ? '<span class="tag">ココ特！</span>' : '') + (c.allow ? '<span class="tag">手当</span>' : '') + (sh.date > today() ? '<span class="tag p">予定</span>' : '');
@@ -790,9 +813,12 @@ html.gate-open body{padding-bottom:0}
     const t = today(), list = shiftsInMonth(calY, calM), s = sumOf(list);
     $('calTitle').textContent = `${calY}年${calM + 1}月`;
     document.querySelectorAll('#calViewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === settings.calView ? 'true' : 'false'));
+    const mv = settings.moneyView, mTotal = mv === 'trans' ? s.pay + s.trans : mv === 'net' ? s.net : s.pay;
     $('calMonthSum').innerHTML = s.days
-      ? `<div>月の給与 <strong>${yen(s.pay)}</strong></div><div class="ms-row"><span>勤務<b>${s.days}日</b></span><span>時間<b>${hmShort(s.work)}</b></span><span>交通費<b>${yen(s.trans)}</b></span></div>`
+      ? `<div>月の${MONEY_LABEL[mv]} <strong>${yen(mTotal)}</strong></div><div class="ms-row"><span>勤務<b>${s.days}日</b></span><span>時間<b>${hmShort(s.work)}</b></span><span>交通費<b>${yen(s.trans)}</b></span><span>実費<b>${yen(s.cost)}</b></span><span>差額<b class="${s.diff < 0 ? 'neg' : 'pos'}">${signed(s.diff)}</b></span></div>`
+        + (s.noCost ? `<div class="s" style="margin-top:2px">実費が未入力のシフトが${s.noCost}件あります（差額0円として計算）</div>` : '')
       : 'この月のシフトはまだありません';
+    document.querySelectorAll('#moneySeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === mv ? 'true' : 'false'));
     let h = Array.from({length: 7}, (_, i) => { const wd = (settings.weekStart + i) % 7; return `<div class="cal-h${wd===0?' sun':wd===6?' sat':''}">${WD[wd]}</div>`; }).join('') + '<div class="cal-h">週計</div>';
     const first = new Date(calY, calM, 1), end = new Date(calY, calM + 1, 0);
     let cur = new Date(calY, calM, 1 - wkOff(first));
@@ -800,7 +826,7 @@ html.gate-open body{padding-bottom:0}
       let wPay = 0, wMin = 0, wAny = false;
       for (let i = 0; i < 7; i++){
         const k = dayKey(cur), ss = shiftsOn(k), w = cur.getDay();
-        ss.forEach(sh => { const c = calc(sh); wPay += c.pay; wMin += c.work; wAny = true; });
+        ss.forEach(sh => { const c = calc(sh); wPay += moneyOf(c); wMin += c.work; wAny = true; });
         const cls = ['cal-d', cur.getMonth() !== calM ? 'out' : '', k === t ? 'today' : '', k === calSel ? 'sel' : '', isRedDay(k) ? 'sun' : w === 6 ? 'sat' : '', ss.length ? 'has' : ''].filter(Boolean).join(' ');
         const dv = ss.slice(0, 2).map(sh => cellText(sh, k, t)).join('');
         h += `<button type="button" class="${cls}" data-k="${k}" aria-label="${cur.getMonth()+1}月${cur.getDate()}日 ${ss.length ? ss.length + '件のシフト' : 'シフトなし'}"><span class="dn">${cur.getDate()}</span>${dv}</button>`;
@@ -815,11 +841,12 @@ html.gate-open body{padding-bottom:0}
       + (ss.length ? ss.map(sh => {
           const c = calc(sh);
           return `<div class="shift" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="tm">${sh.start}〜${sh.end}${tagsOf(sh, c)}</div>`
-            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
-            + `<div class="pay"><b>${yen(c.pay)}</b><div class="sb">交通費 ${yen(c.trans)}</div></div></div>`;
+            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div><div class="sb">${transLine(c)}・実質 ${yen(c.net)}</div></div>`
+            + payCol(c) + `</div>`;
         }).join('') : '<div class="empty-note">シフトはありません</div>');
   }
   function moveMonth(n){ calM += n; while (calM < 0){ calM += 12; calY--; } while (calM > 11){ calM -= 12; calY++; } render(); }
+  $('moneySeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b && b.dataset.v !== settings.moneyView){ settings.moneyView = b.dataset.v; saveSettings(true); } });
   $('calViewSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b && b.dataset.v !== settings.calView){ settings.calView = b.dataset.v; saveSettings(true); } });
   $('calPrev').addEventListener('click', () => moveMonth(-1));
   $('calNext').addEventListener('click', () => moveMonth(1));
@@ -839,13 +866,13 @@ html.gate-open body{padding-bottom:0}
   function renderList(){
     const list = shiftsInMonth(calY, calM), s = sumOf(list), t = today();
     $('listTitle').textContent = `${calY}年${calM + 1}月`;
-    $('listSub').textContent = s.days ? `${s.days}日・${hmShort(s.work)}・給与 ${yen(s.pay)}・交通費 ${yen(s.trans)}` : '';
+    $('listSub').textContent = s.days ? `${s.days}日・${hmShort(s.work)}・給与 ${yen(s.pay)}・交通費 ${yen(s.trans)}・実費 ${yen(s.cost)}・実質 ${yen(s.net)}` : '';
     if (!list.length){ $('listBox').innerHTML = '<div class="empty-note">この月のシフトはありません。右下の ＋ から追加できます</div>'; return; }
     $('listBox').innerHTML = list.map(sh => {
       const c = calc(sh);
       return `<div class="shift${sh.date > t ? ' future' : ''}" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="dl">${dayLabel(sh.date)}${tagsOf(sh, c)}</div><div class="tm">${sh.start}〜${sh.end}</div>`
-        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
-        + `<div class="pay"><b>${yen(c.pay)}</b><div class="sb">交通費 ${yen(c.trans)}</div></div></div>`;
+        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div><div class="sb">${transLine(c)}・実質 ${yen(c.net)}</div></div>`
+        + payCol(c) + `</div>`;
     }).join('');
   }
   $('listBox').addEventListener('click', e => { const r = e.target.closest('.shift'); if (r) openEditor(shifts[r.dataset.id]); });
@@ -860,11 +887,11 @@ html.gate-open body{padding-bottom:0}
       (groups[pi.key] ||= {pd: pi.pay, label: pi.label, list: []}).list.push(sh);
     }
     const keys = Object.keys(groups).sort();
-    let total = 0, done = 0, trans = 0, rows = '';
+    let total = 0, done = 0, trans = 0, cost = 0, diff = 0, net = 0, noCost = 0, rows = '';
     for (const k of keys){
       const g = groups[k], s = sumOf(g.list), pk = `${g.pd.y}-${pad(g.pd.m)}-${pad(g.pd.d)}`, paid = pk <= t;
-      total += s.pay; trans += s.trans; if (paid) done += s.pay;
-      rows += `<tr class="${paid ? '' : 'future'}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${g.label}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与・手当 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span></td></tr>`;
+      total += s.pay; trans += s.trans; cost += s.cost; diff += s.diff; net += s.net; noCost += s.noCost; if (paid) done += s.pay;
+      rows += `<tr class="${paid ? '' : 'future'}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${g.label}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与・手当 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span><span class="sb">交通費の差額 ${signed(s.diff)} → 実質 ${yen(s.net)}</span></td></tr>`;
     }
     $('periods').innerHTML = rows
       ? `<table><thead><tr><th>支給日</th><th>勤務</th><th>振込額</th></tr></thead><tbody>${rows}</tbody></table>`
@@ -880,7 +907,8 @@ html.gate-open body{padding-bottom:0}
     }
     $('annual').innerHTML = `<div class="goal-top"><span class="k">${sumYear}年に支給される給与・手当（予定込み・交通費は除く）</span></div>`
       + `<div class="goal-left">${yen(total)}</div>`
-      + `<div class="goal-sub"><span>支給済み <b>${yen(done)}</b></span><span>これから <b>${yen(total - done)}</b></span><span>交通費（別枠） <b>${yen(trans)}</b></span></div>`
+      + `<div class="goal-sub"><span>支給済み <b>${yen(done)}</b></span><span>これから <b>${yen(total - done)}</b></span><span>交通費（別枠） <b>${yen(trans)}</b></span><span>実際の交通費 <b>${yen(cost)}</b></span><span>交通費の差額 <b class="${diff < 0 ? 'neg' : 'pos'}">${signed(diff)}</b></span><span>実質もらえる額 <b>${yen(net)}</b></span></div>`
+      + (noCost ? `<p class="hint">実際の交通費が未入力のシフトが${noCost}件あります（差額0円として計算）。</p>` : '')
       + (lh || '<p class="hint">設定の「年収チェック」でラインを入れると、ここに進み具合が出ます。</p>');
   }
   $('yearPrev').addEventListener('click', () => { sumYear--; renderSum(); });
@@ -914,6 +942,7 @@ html.gate-open body{padding-bottom:0}
     $('fWage').value = fmt(sh ? sh.wage : (tableWage(settings.job, settings.rank) ?? settings.wage));
     $('fTrans').value = fmt(sh ? (sh.transport || 0) : settings.transport);
     $('fEnsei').value = sh && +sh.ensei ? fmt(sh.ensei) : '';
+    $('fCost').value = sh ? (sh.cost == null || sh.cost === '' ? '' : fmt(sh.cost)) : (settings.cost ? fmt(settings.cost) : '');
     $('fMemo').value = sh ? (sh.memo || '') : '';
     paintEditor();
     $('presetChips').innerHTML = presets.map(p => `<button class="chip" type="button" data-p="${p}">${p.replace('-', '〜')}</button>`).join('');
@@ -926,21 +955,22 @@ html.gate-open body{padding-bottom:0}
     return { id: editing ? editing.id : 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       date: $('fDate').value, start: $('fStart').value, end: $('fEnd').value,
       brk: toInt($('fBrk').value) || 0, job: $('fJob').value, rank: fRank, wage: toInt($('fWage').value) || 0, transport: toInt($('fTrans').value) || 0,
-      meals: fMeals, rain: fRain, kake: fKake, koko: fKoko, ensei: toInt($('fEnsei').value) || 0, memo: $('fMemo').value.trim().slice(0, 60),
+      meals: fMeals, rain: fRain, kake: fKake, koko: fKoko, ensei: toInt($('fEnsei').value) || 0, cost: $('fCost').value.trim() === '' ? null : (toInt($('fCost').value) || 0), memo: $('fMemo').value.trim().slice(0, 60),
       ...(editing && editing.title ? {title: editing.title} : {}), ...(editing && editing.work ? {work: editing.work} : {}) };
   }
   function preview(){
     const sh = formShift();
     document.querySelectorAll('#presetChips .chip').forEach(c => { const [a, z] = c.dataset.p.split('-').map(x => x.padStart(5, '0')); c.classList.toggle('on', a === sh.start && z === sh.end); });
-    if (!sh.start || !sh.end){ $('pvWork').textContent = '—'; $('pvPay').textContent = '—'; $('pvSub').textContent = ''; return; }
+    if (!sh.start || !sh.end){ $('pvWork').textContent = '—'; $('pvPay').textContent = '—'; $('pvNet').textContent = '—'; $('pvSub').textContent = ''; return; }
     const c = calc(sh);
     $('pvWork').textContent = hmShort(c.work);
     $('pvPay').textContent = yen(c.pay);
+    $('pvNet').textContent = yen(c.net);
     $('pvSub').textContent = [c.guaranteed ? `最低保証（${c.minH}時間分）` : '', c.over ? `時間外 ${hm(c.over)}` : '', c.night ? `深夜 ${hm(c.night)}` : '', c.allow ? `手当 ${yen(c.allow)}` : '',
-      `交通費 ${yen(c.trans)}${c.bonus ? `（補助手当${yen(c.bonus)}込み）` : ''}`, toMin(sh.end) <= toMin(sh.start) ? '翌日まで' : '', '15分単位で計算'].filter(Boolean).join('・');
+      `支給の交通費 ${yen(c.trans)}${c.bonus ? `（補助手当${yen(c.bonus)}込み）` : ''}`, c.cost == null ? '実費未入力' : `実費 ${yen(c.cost)}（差額 ${signed(c.diff)}）`, toMin(sh.end) <= toMin(sh.start) ? '翌日まで' : '', '15分単位で計算'].filter(Boolean).join('・');
   }
-  ['fStart','fEnd','fBrk','fWage','fTrans','fEnsei'].forEach(id => $(id).addEventListener('input', preview));
-  ['fBrk','fWage','fTrans','fEnsei'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); }));
+  ['fStart','fEnd','fBrk','fWage','fTrans','fEnsei','fCost'].forEach(id => $(id).addEventListener('input', preview));
+  ['fBrk','fWage','fTrans','fEnsei','fCost'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); }));
   $('fDate').addEventListener('change', preview);
   $('fJob').addEventListener('change', () => { paintEditor(); preview(); });
   $('fRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ fRank = b.dataset.v; paintEditor(); preview(); } });
@@ -983,6 +1013,7 @@ html.gate-open body{padding-bottom:0}
     if (keep($('sJob'))) $('sJob').value = settings.jobName;
     if (keep($('sWage'))) $('sWage').value = fmt(settings.wage);
     if (keep($('sTrans'))) $('sTrans').value = fmt(settings.transport);
+    if (keep($('sCost'))) $('sCost').value = settings.cost ? fmt(settings.cost) : '';
     $('sJobKind').value = settings.job;
     segSet('sRankSeg', settings.rank);
     const tw = tableWage(settings.job, settings.rank);
@@ -1002,6 +1033,8 @@ html.gate-open body{padding-bottom:0}
     $(id).addEventListener('change', e => { const v = toInt(e.target.value); if (v >= 0 && v <= max){ settings[key] = v; saveSettings(); } else fillSettings(); });
   };
   onNum('sWage', 'wage', 100000); onNum('sTrans', 'transport', 100000);
+  $('sCost').addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); });
+  $('sCost').addEventListener('change', e => { const v = toInt(e.target.value); settings.cost = v >= 0 && v <= 100000 ? v : 0; saveSettings(); });
   $('sJobKind').innerHTML = Object.entries(JOBS).map(([k, j]) => `<option value="${k}">${j.name}</option>`).join('');
   $('sJobKind').addEventListener('change', e => { settings.job = e.target.value; saveSettings(); });
   $('sRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.rank = b.dataset.v; saveSettings(); } });
@@ -1049,9 +1082,9 @@ html.gate-open body{padding-bottom:0}
     const list = all().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
     if (!list.length) return say('まだシフトがありません。', 'bad');
     const q = v => { const t = String(v ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
-    const head = ['日付','開始','終了','休憩(分)','勤務(分)','時間外(分)','深夜(分)','業務','ランク','時給','最低保証','給与','手当','交通費','支給日','メモ'];
+    const head = ['日付','開始','終了','休憩(分)','勤務(分)','時間外(分)','深夜(分)','業務','ランク','時給','最低保証','給与','手当','交通費','実際の交通費','実質','支給日','メモ'];
     const rows = list.map(sh => { const c = calc(sh), pd = periodInfo(sh.date).pay;
-      return [sh.date, sh.start, sh.end, +sh.brk || 0, c.work, c.over, c.night, JOBS[sh.job] ? JOBS[sh.job].name : '', sh.rank || '', sh.wage, c.guaranteed ? '適用' : '', c.base, c.allow, c.trans, `${pd.y}-${pad(pd.m)}-${pad(pd.d)}`, sh.memo || ''].map(q).join(','); });
+      return [sh.date, sh.start, sh.end, +sh.brk || 0, c.work, c.over, c.night, JOBS[sh.job] ? JOBS[sh.job].name : '', sh.rank || '', sh.wage, c.guaranteed ? '適用' : '', c.base, c.allow, c.trans, c.cost == null ? '' : c.cost, c.net, `${pd.y}-${pad(pd.m)}-${pad(pd.d)}`, sh.memo || ''].map(q).join(','); });
     const name = `baito-${stamp()}.csv`;
     saveBlob(name, new Blob(['﻿' + [head.join(','), ...rows].join('\r\n')], {type: 'text/csv'}), 'text/csv', () => say(`${list.length} 件を表計算用のファイルにしました（${name}）。`, 'ok'));
   });
@@ -1062,7 +1095,7 @@ html.gate-open body{padding-bottom:0}
       let data; try { data = JSON.parse(String(r.result)); } catch(_) { return say('読み込めませんでした。バイト帳で保存したファイルか確認してください。', 'bad'); }
       const src = data && data.shifts; if (!src || typeof src !== 'object') return say('バイト帳のシフトが入っていません。', 'bad');
       let added = 0;
-      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, koko: !!x.koko, ensei: +x.ensei || 0, memo: String(x.memo || '').slice(0, 60), title: String(x.title || '').slice(0, 40), work: String(x.work || '').slice(0, 30)}); added++; } }
+      for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, koko: !!x.koko, ensei: +x.ensei || 0, cost: x.cost == null || x.cost === '' ? null : (+x.cost || 0), memo: String(x.memo || '').slice(0, 60), title: String(x.title || '').slice(0, 40), work: String(x.work || '').slice(0, 30)}); added++; } }
       let setMsg = '';
       if (data.settings && (+data.settings.updatedAt || 0) > settings.updatedAt){ settings = normSettings(data.settings); saveSettings(true); setMsg = '設定も読み込みました。'; }
       render();
@@ -1107,7 +1140,7 @@ html.gate-open body{padding-bottom:0}
         const job = jobFromText(x.w || x.t);
         const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
         const sh = old ? {...old, date: x.d, start: x.s, end: x.e, koko: !!old.koko || koko, title: old.title || String(x.t || '').slice(0, 40), work: old.work || String(x.w || '').slice(0, 30)}
-          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
+          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, cost: settings.cost ? settings.cost : null, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
         return {sh, old, status, timeSame, on: status === 'new' || status === 'changed'};
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
