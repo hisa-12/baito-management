@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.7', date: '2026/11/16 17:40' };
+window.APP_VERSION = { no: '2.8', date: '2026/11/16 18:00' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -466,7 +466,7 @@ html.gate-open body{padding-bottom:0}
           <li>Scriptableを開き、右上の「＋」→ 貼り付け → 名前を「バイト帳に送る」にする</li>
           <li>スクリプトを実行する（はじめての時はカレンダーへのアクセスを「許可」）</li>
           <li>Safariでバイト帳が開くので、確認画面で「追加する」を押す</li>
-          <li>予定の詳細かタイトルに「ココ特」と書いてあれば、ココ特！手当（3,000円）も自動でオンになります</li>
+          <li>予定の詳細かタイトルに「ココ得」（または「ココ特」）と書いてあれば、ココ特！手当（3,000円）も自動でオンになります</li>
         </ol>
         <p class="msg">※ Safariで開くので、Safariでも一度ログインしておいてください（ホーム画面のバイト帳には同期で反映されます）。</p>
         <button class="btn primary" id="copyScript" type="button">Scriptable用のスクリプトをコピー</button>
@@ -768,7 +768,12 @@ html.gate-open body{padding-bottom:0}
   const wkOff = d => (d.getDay() - settings.weekStart + 7) % 7;
   const JOB_SHORT = {guide: '案内', setup: '設営撤去', single: '設営/撤去', cater: 'ケータ', guard: '警備', other: 'その他'};
   const titleOf = sh => (sh.title || String(sh.memo || '').split(/[＠／]/)[0] || '').trim();
-  const workOf = sh => { let w = sh.work || (String(sh.memo || '').split('／')[1] || ''); w = w.trim(); if (!w || /[・、,]/.test(w)) return JOB_SHORT[sh.job] || w; return w.split(/\s+/)[0]; };
+  const workOf = sh => { let w = sh.work || (String(sh.memo || '').split('／')[1] || ''); // 【ココ得！…】などのおまけ部分は外して、業務の言葉だけを拾う
+    w = w.replace(/【[^】]*】?/g, '').trim();
+    const hit = [...new Set(w.match(/設営|撤去|案内|警備|ケータリング|ランナー|グッズ|物販|クローク|事務|軽作業|ステージハンド/g) || [])];
+    if (hit.length === 1) return hit[0];
+    if (hit.length > 1) return JOB_SHORT[sh.job] || hit.join('');
+    return w.split(/\s+/)[0] || JOB_SHORT[sh.job] || ''; };
   function cellText(sh, k, t){
     const c = calc(sh), v = settings.calView;
     const txt = v === 'pay' ? compact(c.pay) : v === 'work' ? hmShort(c.work) : v === 'title' ? esc(titleOf(sh) || '—') : v === 'job' ? esc(workOf(sh) || '—') : `${shortT(sh.start)}-<wbr>${shortT(sh.end)}`;
@@ -1097,7 +1102,7 @@ html.gate-open body{padding-bottom:0}
         const id = 'c' + x.k.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60);
         const old = shifts[id];
         const dup = !old && all().some(o => o.date === x.d && o.start === x.s);
-        const koko = !!x.c, timeSame = old && old.date === x.d && old.start === x.s && old.end === x.e, kokoNew = old && koko && !old.koko;
+        const koko = !!x.c || /ココ[特得]/.test(String(x.w || '') + String(x.t || '')), timeSame = old && old.date === x.d && old.start === x.s && old.end === x.e, kokoNew = old && koko && !old.koko;
         const status = old ? (timeSame && !kokoNew ? 'same' : 'changed') : dup ? 'dup' : 'new';
         const job = jobFromText(x.w || x.t);
         const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
@@ -1161,7 +1166,7 @@ if (!cal) {
       k: (e.identifier || "").replace(/[^A-Za-z0-9]/g, "").slice(-40) + "_" + ymd(e.startDate).replace(/-/g, ""),
       d: ymd(e.startDate), s: hm(e.startDate), e: hm(e.endDate),
       t: (e.title || "").slice(0, 40), l: (e.location || "").split("\\n")[0].slice(0, 30), w: w.trim().slice(0, 30),
-      c: /ココ特/.test(notes + " " + (e.title || "")) ? 1 : 0
+      c: /ココ[特得]/.test(notes + " " + (e.title || "")) ? 1 : 0
     };
   });
   const b64 = Data.fromString(JSON.stringify(list)).toBase64String().replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
