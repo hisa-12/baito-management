@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.1', date: '2026/11/16 18:06' };
+window.APP_VERSION = { no: '3.2', date: '2026/11/16 18:49' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -480,6 +480,7 @@ html.gate-open body{padding-bottom:0}
           <li>Scriptableを開き、右上の「＋」→ 貼り付け → 名前を「バイト帳に送る」にする</li>
           <li>スクリプトを実行する（はじめての時はカレンダーへのアクセスを「許可」）</li>
           <li>Safariでバイト帳が開くので、確認画面で「追加する」を押す</li>
+          <li>支給の交通費は、予定の「場所」か「タイトル」の会場名から、交通費補助料金表（2026年3月14日現在）の金額を自動で入れます。表にない会場は、設定の「交通費補助」の金額になります</li>
           <li>予定の詳細かタイトルに「ココ得」（または「ココ特」）と書いてあれば、ココ特！手当（3,000円）も自動でオンになります</li>
         </ol>
         <p class="msg">※ Safariで開くので、Safariでも一度ログインしておいてください（ホーム画面のバイト帳には同期で反映されます）。</p>
@@ -1119,6 +1120,43 @@ html.gate-open body{padding-bottom:0}
     r.readAsText(f); e.target.value = '';
   });
 
+  /* ---- 交通費補助料金表（2026年3月14日現在）：会場名 → 支給額。表にない会場は設定の金額（¥1,000〜） ---- */
+  const FARES = [
+    [1000, ['日本武道館','武道館','国立代々木競技場','代々木第一体育館','代々木第二体育館','東京ガーデンシアター','東京ビッグサイト','ビッグサイト','東京国際展示場','有明アリーナ','東京ドーム','Kanadevia Hall','TOKYO DOME CITY HALL','東京ドームシティホール','味の素スタジアム','東京スタジアム','NHKホール','かつしかシンフォニーヒルズ','ザ・ガーデンホール','ザ・ガーデン・ルーム','品川インターシティホール','品川ステラボール','SHIBUYA CLUB QUATTRO','渋谷クラブクアトロ','新宿BLAZE','新宿LOFT','新宿ReNY','TOYOTA ARENA TOKYO','TOYOTA AREANA TOKYO','トヨタアリーナ東京','Zepp DiverCity','Zepp Haneda','Spotify O-EAST','O-EAST','O-WEST','duo MUSIC EXCHANGE','東京国際フォーラム','東京体育館','MUFGスタジアム','国立競技場','豊洲PIT','日本橋三井ホール','京王アリーナTOKYO','武蔵野の森総合スポーツプラザ','LINE CUBE SHIBUYA','渋谷公会堂','LIQUIDROOM','両国国技館','国技館']],
+    [1060, ['府中の森芸術劇場']],
+    [1240, ['TACHIKAWA STAGE GARDEN','立川ステージガーデン']],
+    [1620, ['J:COMホール八王子','JCOMホール八王子','オリンパスホール八王子']],
+    [1000, ['川崎市スポーツ・文化総合センター','カルッツかわさき','CLUB CITTA','クラブチッタ','日産スタジアム','横浜国際総合競技場','横浜アリーナ','横浜スタジアム','横浜BUNTAI']],
+    [1020, ['Kアリーナ','KT Zepp Yokohama','ぴあアリーナMM','パシフィコ横浜']],
+    [1080, ['横浜赤レンガ倉庫','赤レンガ倉庫']],
+    [1140, ['東扇島東公園']],
+    [1200, ['相模女子大学グリーンホール']],
+    [1640, ['よこすか芸術劇場']],
+    [1000, ['戸田市文化会館']],
+    [1060, ['さいたま市文化センター']],
+    [1180, ['サンシティ越谷市民ホール','サンシティ越谷']],
+    [1220, ['三郷市文化会館']],
+    [1240, ['さいたまスーパーアリーナ',"HEAVEN'S ROCKさいたま新都心",'HEAVENS ROCK','大宮ソニックシティ','ソニックシティ']],
+    [1420, ['ベルーナドーム','西武球場','西武ドーム']],
+    [1560, ['埼玉スタジアム2002','埼玉スタジアム']],
+    [1000, ['舞浜アンフィシアター','浦安市文化会館']],
+    [1060, ['市川市文化会館']],
+    [1400, ['ZOZOマリンスタジアム','幕張メッセ','幕張海浜公園']],
+    [1440, ['LaLa arena TOKYO-BAY','ららアリーナ']],
+    [1620, ['松戸森のホール21','森のホール21']],
+    [2080, ['千葉LOOK','蘇我スポーツ公園','千葉県文化会館']],
+    [2980, ['市原市市民会館']],
+    [4180, ['宇都宮市文化会館','栃木県総合文化センター']],
+    [4580, ['日本トーターグリーンドーム前橋','グリーンドーム前橋']],
+    [4840, ['水戸LIGHT HOUSE','ザ・ヒロサワ・シティ会館']],
+    [4840, ['YCC県民文化ホール','山梨県立県民文化ホール']],
+    [5500, ['KAZOO HALL']],
+  ];
+  const normV = t => String(t || '').normalize('NFKC').toLowerCase().replace(/[\s・･'’"“”:：\-–—_.,、。()（）［］\[\]]/g, '');
+  const FARE_KEYS = FARES.flatMap(([amt, names]) => names.map(n => ({k: normV(n), amt, name: n}))).sort((a, b) => b.k.length - a.k.length);
+  // 場所・タイトルの文字から会場を探す（見つからなければ null）
+  const venueFare = text => { const t = normV(text); return FARE_KEYS.find(f => t.includes(f.k)) || null; };
+
   /* ---- カレンダーから読み込み（Scriptableから #import=… で受け取る） ---- */
   let authResolved = false;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1150,21 +1188,26 @@ html.gate-open body{padding-bottom:0}
         const old = shifts[id];
         const dup = !old && all().some(o => o.date === x.d && o.start === x.s);
         const koko = !!x.c || /ココ[特得]/.test(String(x.w || '') + String(x.t || '')), timeSame = old && old.date === x.d && old.start === x.s && old.end === x.e, kokoNew = old && koko && !old.koko;
-        const status = old ? (timeSame && !kokoNew ? 'same' : 'changed') : dup ? 'dup' : 'new';
+        const fare = venueFare(`${x.l || ''} ${x.t || ''}`);
+        // 前に読み込んだシフトの交通費が「いつもの金額」のままなら、表の金額に直す（自分で直した金額はそのまま）
+        const fareFix = !!(old && fare && fare.amt !== +old.transport && +old.transport === settings.transport);
+        const status = old ? (timeSame && !kokoNew && !fareFix ? 'same' : 'changed') : dup ? 'dup' : 'new';
         const job = jobFromText(x.w || x.t);
         const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
-        const sh = old ? {...old, date: x.d, start: x.s, end: x.e, koko: !!old.koko || koko, title: old.title || String(x.t || '').slice(0, 40), work: old.work || String(x.w || '').slice(0, 30)}
-          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, cost: settings.cost ? settings.cost : null, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
-        return {sh, old, status, timeSame, on: status === 'new' || status === 'changed'};
+        const sh = old ? {...old, date: x.d, start: x.s, end: x.e, koko: !!old.koko || koko, transport: fareFix ? fare.amt : old.transport, title: old.title || String(x.t || '').slice(0, 40), work: old.work || String(x.w || '').slice(0, 30)}
+          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: fare ? fare.amt : settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, cost: settings.cost ? settings.cost : null, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
+        return {sh, old, status, timeSame, kokoNew, fare, fareFix, on: status === 'new' || status === 'changed'};
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
     if (!show.length) return showToast(impItems.length ? `新しい予定はありませんでした（${same}件は登録済み）` : 'カレンダーにバイトの予定がありませんでした', false);
     $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。${settings.useBreak ? '休憩は0分で入るので、あとで直してください。' : ''}カレンダーから消えた予定は、バイト帳からは消えません。`;
     $('impList').innerHTML = show.map(x => {
       const i = impItems.indexOf(x), c = calc(x.sh);
-      const tag = x.status === 'new' ? '<span class="tag p">新規</span>' : x.status === 'changed' ? (x.timeSame ? '<span class="tag">ココ特！を追加</span>' : `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>`) : '<span class="tag h">同じ時間のシフトあり</span>';
+      const tag = x.status === 'new' ? '<span class="tag p">新規</span>'
+        : x.status === 'changed' ? [!x.timeSame ? `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>` : '', x.kokoNew ? '<span class="tag">ココ特！を追加</span>' : '', x.fareFix ? `<span class="tag">交通費 ${yen(x.old.transport)}→${yen(x.sh.transport)}</span>` : ''].join('')
+        : '<span class="tag h">同じ時間のシフトあり</span>';
       return `<label class="shift imp"><input type="checkbox" data-i="${i}"${x.on ? ' checked' : ''}><div><div class="dl">${dayLabel(x.sh.date)}${tag}</div><div class="tm">${x.sh.start}〜${x.sh.end}</div>`
-        + `<div class="sb">${jobLabel(x.sh)}${esc(x.sh.memo || '')}</div></div><div class="pay"><b>${yen(c.pay)}</b></div></label>`;
+        + `<div class="sb">${jobLabel(x.sh)}${esc(x.sh.memo || '')}</div><div class="sb">交通費 ${yen(x.sh.transport)}${x.fare ? `（${esc(x.fare.name)}）` : '（表にない会場）'}</div></div><div class="pay"><b>${yen(c.pay)}</b></div></label>`;
     }).join('');
     paintImpOk();
     $('impSheet').hidden = false;
