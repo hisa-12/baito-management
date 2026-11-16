@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '2.9', date: '2026/11/16 17:55' };
+window.APP_VERSION = { no: '3.0', date: '2026/11/16 18:02' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -148,7 +148,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .shift:hover{border-color:var(--line)}
 .shift .tm{font-family:var(--font-display);font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
 .shift .sb{font-size:12px;color:var(--muted)}
-.shift .pay{text-align:right;flex:none}
+.shift .pay{text-align:right;flex:none;max-width:48%}
+.shift .pay .sb{white-space:nowrap}
 .shift .pay b{font-family:var(--font-display);font-weight:800;font-size:17px;color:var(--teal);font-variant-numeric:tabular-nums}
 .shift .dl{font-size:12px;font-weight:700;color:var(--muted)}
 .shift.future .tm,.shift.future .pay b{opacity:.75}
@@ -704,7 +705,10 @@ html.gate-open body{padding-bottom:0}
   const signed = n => (n < 0 ? '−' : '+') + yen(Math.abs(n));
   const transLine = c => `交通費 ${yen(c.trans)}` + (c.cost == null ? '・実費未入力' : `・実費 ${yen(c.cost)}（<span class="${c.diff < 0 ? 'neg' : 'pos'}">${signed(c.diff)}</span>）`);
   function payCol(c){
-    return `<div class="pay"><div class="ml">${MONEY_LABEL[settings.moneyView]}</div><b>${yen(moneyOf(c))}</b></div>`;
+    const costTxt = c.cost == null ? '実費 未入力' : `実費 ${yen(c.cost)}（<span class="${c.diff < 0 ? 'neg' : 'pos'}">${signed(c.diff)}</span>）`;
+    return `<div class="pay"><div class="ml">${MONEY_LABEL[settings.moneyView]}</div><b>${yen(moneyOf(c))}</b>`
+      + `<div class="sb">交通費 ${yen(c.trans)}</div><div class="sb">${costTxt}</div>`
+      + (settings.moneyView === 'net' ? `<div class="sb">給与 ${yen(c.pay)}</div>` : `<div class="sb">実質 ${yen(c.net)}</div>`) + `</div>`;
   }
 
   /* ---- 締め日・給料日 ---- */
@@ -841,7 +845,7 @@ html.gate-open body{padding-bottom:0}
       + (ss.length ? ss.map(sh => {
           const c = calc(sh);
           return `<div class="shift" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="tm">${sh.start}〜${sh.end}${tagsOf(sh, c)}</div>`
-            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div><div class="sb">${transLine(c)}・実質 ${yen(c.net)}</div></div>`
+            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
             + payCol(c) + `</div>`;
         }).join('') : '<div class="empty-note">シフトはありません</div>');
   }
@@ -871,7 +875,7 @@ html.gate-open body{padding-bottom:0}
     $('listBox').innerHTML = list.map(sh => {
       const c = calc(sh);
       return `<div class="shift${sh.date > t ? ' future' : ''}" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="dl">${dayLabel(sh.date)}${tagsOf(sh, c)}</div><div class="tm">${sh.start}〜${sh.end}</div>`
-        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div><div class="sb">${transLine(c)}・実質 ${yen(c.net)}</div></div>`
+        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
         + payCol(c) + `</div>`;
     }).join('');
   }
