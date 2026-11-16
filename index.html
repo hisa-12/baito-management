@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.0', date: '2026/11/16 18:02' };
+window.APP_VERSION = { no: '3.1', date: '2026/11/16 18:06' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -413,6 +413,11 @@ html.gate-open body{padding-bottom:0}
           <p class="hint">給料表（2026年10月1日現在）どおりに自動で計算します：勤務時間は15分単位（端数は切り捨て）／8時間を超えた分は時間外（25%増）／22〜翌5時は深夜加算（25%）／最低保証時間より短いときは最低保証料／Bランク以上は交通費補助手当500円を自動でプラス。ランクを変えても、これまでのシフトの時給は変わりません。</p>
         </div>
         <div class="pref-row">
+          <span class="pref-k">休憩時間</span>
+          <div class="seg seg-wide" id="breakSeg" role="group" aria-label="休憩時間"><button type="button" data-v="off">使わない（休憩中も給料が出る）</button><button type="button" data-v="on">使う</button></div>
+          <p class="hint">「使わない」にすると、休憩の入力欄と表示が消え、休憩を引かずに給料を計算します。</p>
+        </div>
+        <div class="pref-row">
           <label class="pref-k" for="sPresets">よく使う時間（カンマ区切り・入力画面にボタンで出ます）</label>
           <input id="sPresets" class="pref-text" autocomplete="off" placeholder="09:00-13:00,13:00-17:00">
         </div>
@@ -548,7 +553,7 @@ html.gate-open body{padding-bottom:0}
       <div class="field wide"><label>手当</label><div class="chips" id="fAllow">
         <button class="chip" type="button" data-a="meal1">食事なし 1食 ¥800</button><button class="chip" type="button" data-a="meal2">食事なし 2食 ¥1,600</button>
         <button class="chip" type="button" data-a="rain">雨天 ¥500</button><button class="chip" type="button" data-a="kake">掛け持ち ¥500</button><button class="chip" type="button" data-a="koko">ココ特！ ¥3,000</button></div></div>
-      <div class="field"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
+      <div class="field" id="fBrkBox"><label for="fBrk">休憩（分）</label><input id="fBrk" inputmode="numeric" autocomplete="off"></div>
       <div class="field"><label for="fEnsei">遠征手当（円）</label><input id="fEnsei" inputmode="numeric" autocomplete="off" placeholder="0"></div>
       <div class="field wide"><label for="fMemo">メモ</label><input id="fMemo" maxlength="60" autocomplete="off" placeholder="なくてもOK" style="font-weight:500"></div>
     </div>
@@ -655,6 +660,7 @@ html.gate-open body{padding-bottom:0}
       lines: Array.isArray(o.lines) && o.lines.join() !== '1230000,1500000,1600000' ? o.lines.map(Number).filter(v => v > 0).slice(0, 8) : [1360000, 1500000, 1590000],
       startTab: ['cal','list','sum','set'].includes(o.startTab) ? o.startTab : 'cal',
       weekStart: n(o.weekStart, 0, 0, 6),
+      useBreak: o.useBreak === true,
       cost: n(o.cost, 0, 0, 100000),
       moneyView: ['pay','trans','net'].includes(o.moneyView) ? o.moneyView : 'pay',
       calView: ['time','pay','work','title','job'].includes(o.calView) ? o.calView : 'time',
@@ -674,7 +680,7 @@ html.gate-open body{padding-bottom:0}
     const s = toMin(sh.start); let e = toMin(sh.end);
     if (e <= s) e += 1440;                                   // 日付をまたぐ
     const isNight = m => { const x = m % 1440; return x < 300 || x >= 1320; };
-    const brk = Math.max(0, +sh.brk || 0);
+    const brk = settings.useBreak ? Math.max(0, +sh.brk || 0) : 0;   // 休憩中も給料が出る設定なら引かない
     const work = Math.floor(Math.max(0, (e - s) - brk) / 15) * 15;
     // 休憩は昼の時間帯からとった扱い（足りなければ深夜から）。時間の早い順に、8時間目までを通常、それ以降を時間外として数える
     let dayAll = 0; for (let m = s; m < e; m++) if (!isNight(m)) dayAll++;
@@ -793,6 +799,7 @@ html.gate-open body{padding-bottom:0}
   const shiftsOn = k => all().filter(s => s.date === k).sort((a,b) => a.start.localeCompare(b.start));
   const shiftsInMonth = (y, m0) => { const p = `${y}-${pad(m0+1)}-`; return all().filter(s => s.date.startsWith(p)).sort((a,b) => (a.date + a.start).localeCompare(b.date + b.start)); };
   const wkOff = d => (d.getDay() - settings.weekStart + 7) % 7;
+  const brkTxt = sh => settings.useBreak ? `・休憩${+sh.brk || 0}分` : '';
   const JOB_SHORT = {guide: '案内', setup: '設営撤去', single: '設営/撤去', cater: 'ケータ', guard: '警備', other: 'その他'};
   const titleOf = sh => (sh.title || String(sh.memo || '').split(/[＠／]/)[0] || '').trim();
   const workOf = sh => { let w = sh.work || (String(sh.memo || '').split('／')[1] || ''); // 【ココ得！…】などのおまけ部分は外して、業務の言葉だけを拾う
@@ -845,7 +852,7 @@ html.gate-open body{padding-bottom:0}
       + (ss.length ? ss.map(sh => {
           const c = calc(sh);
           return `<div class="shift" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="tm">${sh.start}〜${sh.end}${tagsOf(sh, c)}</div>`
-            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
+            + `<div class="sb">${jobLabel(sh)}${hm(c.work)}${brkTxt(sh)}・時給${yen(sh.wage)}${c.allow ? '・手当' + yen(c.allow) : ''}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
             + payCol(c) + `</div>`;
         }).join('') : '<div class="empty-note">シフトはありません</div>');
   }
@@ -875,7 +882,7 @@ html.gate-open body{padding-bottom:0}
     $('listBox').innerHTML = list.map(sh => {
       const c = calc(sh);
       return `<div class="shift${sh.date > t ? ' future' : ''}" data-id="${esc(sh.id)}" role="button" tabindex="0"><div><div class="dl">${dayLabel(sh.date)}${tagsOf(sh, c)}</div><div class="tm">${sh.start}〜${sh.end}</div>`
-        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}・休憩${+sh.brk || 0}分${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
+        + `<div class="sb">${jobLabel(sh)}${hm(c.work)}${brkTxt(sh)}${sh.memo ? '・' + esc(sh.memo) : ''}</div></div>`
         + payCol(c) + `</div>`;
     }).join('');
   }
@@ -950,6 +957,7 @@ html.gate-open body{padding-bottom:0}
     $('fMemo').value = sh ? (sh.memo || '') : '';
     paintEditor();
     $('presetChips').innerHTML = presets.map(p => `<button class="chip" type="button" data-p="${p}">${p.replace('-', '〜')}</button>`).join('');
+    $('fBrkBox').hidden = !settings.useBreak;
     $('edDel').hidden = !sh; resetDel(); $('edErr').hidden = true;
     $('sheet').hidden = false;
     preview();
@@ -1022,6 +1030,7 @@ html.gate-open body{padding-bottom:0}
     segSet('sRankSeg', settings.rank);
     const tw = tableWage(settings.job, settings.rank);
     $('sWageNote').textContent = tw != null ? `→ 時給 ${yen(tw)}・時間外 ${yen(Math.round(tw * 1.25))}・深夜加算 ${yen(Math.round(tw * .25))}・最低保証 ${JOBS[settings.job].min}時間（${yen(tw * JOBS[settings.job].min)}）${['S','A','B'].includes(settings.rank) ? '・交通費補助手当 ¥500' : ''}` : '→ 時給は下の「時給（その他のとき）」を使います';
+    segSet('breakSeg', settings.useBreak ? 'on' : 'off');
     segSet('payModeSeg', settings.payMode);
     segSet('payShiftSeg', settings.payShift ? 'on' : 'off');
     $('monthlyGrid').hidden = settings.payMode !== 'monthly';
@@ -1042,6 +1051,7 @@ html.gate-open body{padding-bottom:0}
   $('sJobKind').innerHTML = Object.entries(JOBS).map(([k, j]) => `<option value="${k}">${j.name}</option>`).join('');
   $('sJobKind').addEventListener('change', e => { settings.job = e.target.value; saveSettings(); });
   $('sRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.rank = b.dataset.v; saveSettings(); } });
+  $('breakSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.useBreak = b.dataset.v === 'on'; saveSettings(); } });
   $('payModeSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.payMode = b.dataset.v; saveSettings(); } });
   $('payShiftSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ settings.payShift = b.dataset.v === 'on'; saveSettings(); } });
   $('sJob').addEventListener('change', e => { settings.jobName = e.target.value.trim().slice(0, 30); saveSettings(); });
@@ -1149,7 +1159,7 @@ html.gate-open body{padding-bottom:0}
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
     if (!show.length) return showToast(impItems.length ? `新しい予定はありませんでした（${same}件は登録済み）` : 'カレンダーにバイトの予定がありませんでした', false);
-    $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。休憩は0分で入るので、あとで直してください。カレンダーから消えた予定は、バイト帳からは消えません。`;
+    $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。${settings.useBreak ? '休憩は0分で入るので、あとで直してください。' : ''}カレンダーから消えた予定は、バイト帳からは消えません。`;
     $('impList').innerHTML = show.map(x => {
       const i = impItems.indexOf(x), c = calc(x.sh);
       const tag = x.status === 'new' ? '<span class="tag p">新規</span>' : x.status === 'changed' ? (x.timeSame ? '<span class="tag">ココ特！を追加</span>' : `<span class="tag">時間が変わった（${x.old.start}〜${x.old.end}）</span>`) : '<span class="tag h">同じ時間のシフトあり</span>';
