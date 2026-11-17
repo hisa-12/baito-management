@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.3', date: '2026/11/16 18:59' };
+window.APP_VERSION = { no: '3.4', date: '2026/11/17 19:40' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -486,6 +486,15 @@ html.gate-open body{padding-bottom:0}
         <p class="msg">※ Safariで開くので、Safariでも一度ログインしておいてください（ホーム画面のバイト帳には同期で反映されます）。</p>
         <button class="btn primary" id="copyScript" type="button">Scriptable用のスクリプトをコピー</button>
         <p class="msg" id="copyMsg" aria-live="polite"></p>
+        <p class="pref-k" style="margin-top:10px">毎日自動で送る（オートメーション用）</p>
+        <p class="msg">iPhoneを触らなくても、決まった時刻にカレンダーの予定をバイト帳に送っておけます。次にバイト帳を開いたときに確認画面が出るので、「追加する」を押すだけです。</p>
+        <ol class="msg steps">
+          <li>下のボタンで自動用スクリプトをコピーし、Scriptableで新しく貼り付けて、名前を「バイト帳に自動で送る」にする</li>
+          <li>Scriptableでそのスクリプトを1回実行し、バイト帳と同じメールアドレスとパスワードを入れる（このiPhoneのキーチェーンに保存されます）</li>
+          <li>ショートカットアプリ →「オートメーション」→「＋」→「特定の時刻」（毎日・すぐに実行）→「新規の空のオートメーション」→ Scriptableの「Run Script」で「バイト帳に自動で送る」を選ぶ（Run In App はオフのまま）</li>
+        </ol>
+        <button class="btn" id="copyAutoScript" type="button">自動用スクリプトをコピー</button>
+        <p class="msg" id="copyAutoMsg" aria-live="polite"></p>
       </div>
     </section>
 
@@ -1181,7 +1190,12 @@ html.gate-open body{padding-bottom:0}
       const b = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
       list = JSON.parse(new TextDecoder().decode(Uint8Array.from(b, c => c.charCodeAt(0))));
     } catch(_) { return showToast('カレンダーのデータを読み込めませんでした', false); }
-    if (!Array.isArray(list)) return;
+    processImport(list, 0);
+  }
+  // inboxAt：自動で届いた予定（その時刻）。0 は手動（Safariで開いた）読み込み
+  let impInboxAt = 0;
+  function processImport(list, inboxAt){
+    if (!Array.isArray(list)) { if (inboxAt) markInbox(inboxAt); return; }
     impItems = list.filter(x => x && typeof x.k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.d) && /^\d{2}:\d{2}$/.test(x.s) && /^\d{2}:\d{2}$/.test(x.e) && x.s !== x.e)
       .map(x => {
         const id = 'c' + x.k.replace(/[^A-Za-z0-9_]/g, '').slice(0, 60);
@@ -1199,8 +1213,10 @@ html.gate-open body{padding-bottom:0}
         return {sh, old, status, timeSame, kokoNew, fare, fareFix, on: status === 'new' || status === 'changed'};
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
+    if (inboxAt && !show.some(x => x.status === 'new' || x.status === 'changed')){ markInbox(inboxAt); impItems = []; return; }   // 自動のときは、変わったものがなければ何も出さない
+    impInboxAt = inboxAt;
     if (!show.length) return showToast(impItems.length ? `新しい予定はありませんでした（${same}件は登録済み）` : 'カレンダーにバイトの予定がありませんでした', false);
-    $('impNote').textContent = `${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。${settings.useBreak ? '休憩は0分で入るので、あとで直してください。' : ''}カレンダーから消えた予定は、バイト帳からは消えません。`;
+    $('impNote').textContent = `${inboxAt ? 'カレンダーから自動で届いた予定です。' : ''}${show.length}件の予定があります${same ? `（ほかに${same}件は登録済み）` : ''}。追加するものにチェックを入れてください。${settings.useBreak ? '休憩は0分で入るので、あとで直してください。' : ''}カレンダーから消えた予定は、バイト帳からは消えません。`;
     $('impList').innerHTML = show.map(x => {
       const i = impItems.indexOf(x), c = calc(x.sh);
       const tag = x.status === 'new' ? '<span class="tag p">新規</span>'
@@ -1214,7 +1230,18 @@ html.gate-open body{padding-bottom:0}
   }
   function paintImpOk(){ const n = impItems.filter(x => x.on).length; $('impOk').disabled = !n; $('impOk').textContent = n ? `${n}件を追加する` : '追加する'; }
   $('impList').addEventListener('change', e => { const cb = e.target.closest('input[data-i]'); if (cb){ impItems[+cb.dataset.i].on = cb.checked; paintImpOk(); } });
-  const closeImport = () => { $('impSheet').hidden = true; impItems = []; };
+  const closeImport = () => { $('impSheet').hidden = true; impItems = []; if (impInboxAt){ markInbox(impInboxAt); impInboxAt = 0; } setTimeout(tryInbox, 0); };
+  // 自動で届いた予定（Firestore の baitoUsers/{uid}.calInbox）を、処理済みにする
+  function markInbox(at){ if (cloud && cloud.ready) cloud.home.set({calInbox: {doneAt: at}}, {merge: true}).catch(() => {}); }
+  let pendingInbox = null, shiftsLoaded = false, inboxSeen = 0;
+  function tryInbox(){
+    if (!pendingInbox || !shiftsLoaded || !$('impSheet').hidden) return;
+    const ib = pendingInbox; pendingInbox = null;
+    const at = +ib.at || 0; if (!at || at === inboxSeen) return;
+    inboxSeen = at;
+    let list; try { list = JSON.parse(ib.data); } catch(_) { return markInbox(at); }
+    processImport(list, at);
+  }
   $('impClose').addEventListener('click', closeImport);
   $('impCancel').addEventListener('click', closeImport);
   $('impOk').addEventListener('click', async () => {
@@ -1264,12 +1291,89 @@ if (!cal) {
 }
 Script.complete();
 `;
-  $('copyScript').addEventListener('click', async () => {
-    const t = scriptText(), m = $('copyMsg');
+  // 自動用：画面を開かずにログインして、予定を Firestore の受け取り箱（calInbox）に送る
+  const autoScriptText = () => { const CFG = window.FIREBASE_CONFIG || {}; return `// バイト帳に自動で送る（Scriptable用・ショートカットのオートメーション向け）
+// iPhoneのカレンダー「バイト」の予定をバイト帳に送っておき、次にバイト帳を開いたときに確認画面を出します
+const CAL_NAME = "バイト";   // カレンダーの名前
+const FROM = [2026, 9, 1];   // この日の予定から（年, 月, 日）
+const DAYS_AHEAD = 90;       // 何日後の予定まで
+const API_KEY = "${CFG.apiKey || ''}";
+const PROJECT = "${CFG.projectId || ''}";
+const K_MAIL = "baito-email", K_PASS = "baito-password";
+
+async function say(title, msg) {
+  if (config.runsInApp) { const a = new Alert(); a.title = title; a.message = msg; a.addAction("OK"); await a.present(); }
+  else { const n = new Notification(); n.title = title; n.body = msg; await n.schedule(); }
+}
+async function askLogin() {
+  const a = new Alert();
+  a.title = "バイト帳にログイン";
+  a.message = "バイト帳と同じメールアドレスとパスワードを入れてください。このiPhoneのキーチェーンに保存されます。";
+  a.addTextField("メールアドレス", Keychain.contains(K_MAIL) ? Keychain.get(K_MAIL) : "");
+  a.addSecureTextField("パスワード", "");
+  a.addAction("保存");
+  a.addCancelAction("やめる");
+  if (await a.present() === -1) return false;
+  Keychain.set(K_MAIL, a.textFieldValue(0).trim());
+  Keychain.set(K_PASS, a.textFieldValue(1));
+  return true;
+}
+async function signIn() {
+  const r = new Request("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=" + API_KEY);
+  r.method = "POST";
+  r.headers = { "Content-Type": "application/json" };
+  r.body = JSON.stringify({ email: Keychain.get(K_MAIL), password: Keychain.get(K_PASS), returnSecureToken: true });
+  try { const j = await r.loadJSON(); return j.idToken ? j : null; } catch (e) { return null; }
+}
+async function main() {
+  if (!Keychain.contains(K_MAIL) || !Keychain.contains(K_PASS)) {
+    if (!config.runsInApp) return say("バイト帳", "最初に1回、Scriptableアプリでこのスクリプトを実行してログインしてください。");
+    if (!(await askLogin())) return;
+  }
+  let auth = await signIn();
+  if (!auth && config.runsInApp && (await askLogin())) auth = await signIn();
+  if (!auth) return say("バイト帳", "ログインできませんでした。Scriptableアプリでこのスクリプトを実行して、ログインし直してください。");
+
+  const cal = (await Calendar.forEvents()).find(c => c.title === CAL_NAME);
+  if (!cal) return say("バイト帳", "「" + CAL_NAME + "」という名前のカレンダーがありません。");
+  const from = new Date(FROM[0], FROM[1] - 1, FROM[2]);
+  const to = new Date(); to.setDate(to.getDate() + DAYS_AHEAD);
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = x => x.getFullYear() + "-" + pad(x.getMonth() + 1) + "-" + pad(x.getDate());
+  const hm = x => pad(x.getHours()) + ":" + pad(x.getMinutes());
+  const list = (await CalendarEvent.between(from, to, [cal])).filter(e => !e.isAllDay).map(e => {
+    const notes = e.notes || "";
+    const w = (notes.match(/業務内容\\s*[:：]\\s*(.+)/) || [])[1] || "";
+    return {
+      k: (e.identifier || "").replace(/[^A-Za-z0-9]/g, "").slice(-40) + "_" + ymd(e.startDate).replace(/-/g, ""),
+      d: ymd(e.startDate), s: hm(e.startDate), e: hm(e.endDate),
+      t: (e.title || "").slice(0, 40), l: (e.location || "").split("\\n")[0].slice(0, 30), w: w.trim().slice(0, 30),
+      c: /ココ[特得]/.test(notes + " " + (e.title || "")) ? 1 : 0
+    };
+  });
+
+  const r = new Request("https://firestore.googleapis.com/v1/projects/" + PROJECT + "/databases/(default)/documents/baitoUsers/" + auth.localId + "?updateMask.fieldPaths=calInbox");
+  r.method = "PATCH";
+  r.headers = { "Content-Type": "application/json", "Authorization": "Bearer " + auth.idToken };
+  r.body = JSON.stringify({ fields: { calInbox: { mapValue: { fields: {
+    at: { integerValue: String(Date.now()) },
+    data: { stringValue: JSON.stringify(list) }
+  } } } } });
+  let res = null;
+  try { res = await r.loadJSON(); } catch (e) { res = { error: { message: String(e) } }; }
+  if (!res || res.error) return say("バイト帳", "送れませんでした：" + ((res && res.error && res.error.message) || ""));
+  if (config.runsInApp) await say("バイト帳", list.length + "件の予定を送りました。次にバイト帳を開いたときに、新しい予定や変わった予定があれば確認画面が出ます。");
+}
+await main();
+Script.complete();
+`; };
+  async function copyText(t, m){
     try { await navigator.clipboard.writeText(t); }
     catch(_) { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
     m.textContent = 'コピーしました。Scriptableで貼り付けてください。'; m.className = 'msg ok';
-  });
+  }
+  $('copyScript').addEventListener('click', () => copyText(scriptText(), $('copyMsg')));
+  $('copyAutoScript').addEventListener('click', () => copyText(autoScriptText(), $('copyAutoMsg')));
 
   /* ---- 外観モード ---- */
   function applyTheme(th){
@@ -1405,7 +1509,7 @@ Script.complete();
       gateSkipped = true; setGate(false);
     });
 
-    function stop(){ unsub.forEach(f => f()); unsub = []; cloud = null; }
+    function stop(){ unsub.forEach(f => f()); unsub = []; cloud = null; shiftsLoaded = false; pendingInbox = null; }
     let wasIn = false;
     auth.onAuthStateChanged(async user => {
       stop();
@@ -1444,6 +1548,7 @@ Script.complete();
       unsub.push(() => { window.removeEventListener('online', onNet); window.removeEventListener('offline', onNet); });
       unsub.push(col.onSnapshot({includeMetadataChanges: true}, snap => {
         lastSnap = snap; showState(snap);
+        if (!snap.metadata.fromCache && !shiftsLoaded){ shiftsLoaded = true; setTimeout(tryInbox, 0); }
         if (!first && !snap.docChanges().length) return;
         first = false;
         const o = {}; snap.forEach(d => { const x = d.data(); if (validShift(x)) o[d.id] = x; });
@@ -1451,6 +1556,8 @@ Script.complete();
       }, () => setStatus('同期できません（再ログインしてください）', false, true)));
       unsub.push(home.onSnapshot(d => {
         const rs = d.exists ? (d.data() || {}).settings : null;
+        const ib = d.exists ? (d.data() || {}).calInbox : null;
+        if (ib && ib.data && (+ib.at || 0) > (+ib.doneAt || 0)){ pendingInbox = ib; tryInbox(); }
         if (rs && (+rs.updatedAt || 0) > settings.updatedAt) applyRemoteSettings(rs);
         else if (settings.updatedAt && (!rs || settings.updatedAt > (+rs.updatedAt || 0))) home.set({settings}, {merge: true}).catch(() => {});
       }, () => {}));
