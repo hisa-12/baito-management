@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.5', date: '2026/11/18 15:57' };
+window.APP_VERSION = { no: '3.6', date: '2026/11/18 18:09' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -314,6 +314,17 @@ html.gate-open body{padding-bottom:0}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .csv-note b{color:var(--danger)}
 
+/* 給与明細 */
+#periods tr[data-key]{cursor:pointer}
+#periods tr[data-key]:hover td{background:color-mix(in srgb,var(--teal) 6%,transparent)}
+.slip-tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:0 6px;margin-top:2px}
+.slip-tag.ok{color:var(--teal);background:color-mix(in srgb,var(--teal) 13%,var(--surface))}
+.slip-tag.ng{color:var(--danger);background:color-mix(in srgb,var(--danger) 13%,var(--surface))}
+.slip-tag.none{color:var(--muted);background:var(--bg)}
+.cmp{width:100%;border-collapse:collapse;font-size:13px}
+.cmp th,.cmp td{padding:7px 6px;text-align:right;white-space:nowrap}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp tr+tr td{border-top:1px solid var(--line)}
 /* chart (same as コイン帳) */
 .chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;position:relative}
 .chart-tip{position:absolute;z-index:3;display:flex;flex-direction:column;gap:1px;padding:7px 12px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap}
@@ -440,7 +451,7 @@ html.gate-open body{padding-bottom:0}
     <section>
       <h2>給料日ごと</h2>
       <div class="list" id="periods"></div>
-      <p class="hint" style="margin:8px 2px 0">税金・保険料などが引かれる前の金額です。</p>
+      <p class="hint" style="margin:8px 2px 0">税金・保険料などが引かれる前の金額です。行をタップすると、給与明細の総支給額・交通費・振込額を入れて、計算と合っているか確かめられます。</p>
     </section>
   </div>
 
@@ -658,6 +669,26 @@ html.gate-open body{padding-bottom:0}
     <p class="hint" id="impNote"></p>
     <div id="impList" style="display:flex;flex-direction:column;gap:8px"></div>
     <div class="ed-actions"><button class="btn primary" id="impOk" type="button">追加する</button><button class="btn" id="impCancel" type="button">やめる</button></div>
+  </div>
+</div>
+
+<!-- 給与明細の入力 -->
+<div class="sheet" id="slipSheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="slipTitle">
+    <div class="ed-head"><b id="slipTitle">給与明細</b><button class="btn" id="slipClose" type="button">閉じる</button></div>
+    <p class="hint" id="slipSub"></p>
+    <div class="ed-grid">
+      <div class="field"><label for="slGross">総支給額（円）</label><input id="slGross" inputmode="numeric" autocomplete="off" placeholder="明細の総支給額"></div>
+      <div class="field"><label for="slTrans">うち交通費（円）</label><input id="slTrans" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+      <div class="field wide"><label for="slNet">振込額（円）</label><input id="slNet" inputmode="numeric" autocomplete="off" placeholder="口座に入った金額（なくてもOK）"></div>
+    </div>
+    <table class="cmp" id="slipCmp"></table>
+    <p class="hint" id="slipNote"></p>
+    <div class="ed-actions">
+      <button class="btn primary" id="slipSave" type="button">保存</button>
+      <button class="btn" id="slipCancel" type="button">やめる</button>
+      <button class="del" id="slipDel" type="button" hidden>明細を消す</button>
+    </div>
   </div>
 </div>
 
@@ -978,14 +1009,21 @@ html.gate-open body{padding-bottom:0}
       (groups[pi.key] ||= {pd: pi.pay, label: pi.label, list: []}).list.push(sh);
     }
     const keys = Object.keys(groups).sort();
-    let total = 0, done = 0, trans = 0, cost = 0, diff = 0, net = 0, noCost = 0, rows = '';
+    let total = 0, done = 0, trans = 0, cost = 0, diff = 0, net = 0, noCost = 0, bySlip = 0, rows = '';
+    slipGroups = groups;
     for (const k of keys){
-      const g = groups[k], s = sumOf(g.list), pk = `${g.pd.y}-${pad(g.pd.m)}-${pad(g.pd.d)}`, paid = pk <= t;
-      total += s.pay; trans += s.trans; cost += s.cost; diff += s.diff; net += s.net; noCost += s.noCost; if (paid) done += s.pay;
-      rows += `<tr class="${paid ? '' : 'future'}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${g.label}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与・手当 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span><span class="sb">交通費の差額 ${signed(s.diff)} → 実質 ${yen(s.net)}</span></td></tr>`;
+      const g = groups[k], s = sumOf(g.list), pk = `${g.pd.y}-${pad(g.pd.m)}-${pad(g.pd.d)}`, paid = pk <= t, sl = slips[k];
+      // 明細が入っている給料日は、年収チェックも明細の金額で数える
+      const pay = sl ? sl.gross - sl.trans : s.pay, tr = sl ? sl.trans : s.trans;
+      if (sl) bySlip++;
+      total += pay; trans += tr; cost += s.cost; diff += s.diff; net += s.net; noCost += s.noCost; if (paid) done += pay;
+      const st = sl ? slipState(s, sl) : null;
+      const slipLine = sl ? `<span class="slip-tag ${st.ok ? 'ok' : 'ng'}">明細 ${st.ok ? '一致' : '差 ' + signed(st.d)}</span>${sl.net != null ? `<span class="sb">振込 ${yen(sl.net)}（引かれた額 ${yen(sl.gross - sl.net)}）</span>` : ''}`
+        : paid ? '<span class="slip-tag none">明細を入れる ›</span>' : '';
+      rows += `<tr class="${paid ? '' : 'future'}" data-key="${k}"><td>${g.pd.m}/${g.pd.d}${paid ? '' : '<span class="tag p">予定</span>'}<span class="sb">${g.label}勤務</span></td><td>${s.days}日<span class="sb">${hmShort(s.work)}</span></td><td><b>${yen(s.pay + s.trans)}</b><span class="sb">給与・手当 ${yen(s.pay)}＋交通費 ${yen(s.trans)}</span><span class="sb">交通費の差額 ${signed(s.diff)} → 実質 ${yen(s.net)}</span>${slipLine}</td></tr>`;
     }
     $('periods').innerHTML = rows
-      ? `<table><thead><tr><th>支給日</th><th>勤務</th><th>振込額</th></tr></thead><tbody>${rows}</tbody></table>`
+      ? `<table><thead><tr><th>支給日</th><th>勤務</th><th>支給額（計算）</th></tr></thead><tbody>${rows}</tbody></table>`
       : `<div class="empty-note">${sumYear}年に支給されるシフトはまだありません</div>`;
 
     const lines = settings.lines.slice().sort((a, b) => a - b);
@@ -1000,8 +1038,82 @@ html.gate-open body{padding-bottom:0}
       + `<div class="goal-left">${yen(total)}</div>`
       + `<div class="goal-sub"><span>支給済み <b>${yen(done)}</b></span><span>これから <b>${yen(total - done)}</b></span><span>交通費（別枠） <b>${yen(trans)}</b></span><span>実際の交通費 <b>${yen(cost)}</b></span><span>交通費の差額 <b class="${diff < 0 ? 'neg' : 'pos'}">${signed(diff)}</b></span><span>実質もらえる額 <b>${yen(net)}</b></span></div>`
       + (noCost ? `<p class="hint">実際の交通費が未入力のシフトが${noCost}件あります（差額0円として計算）。</p>` : '')
+      + (bySlip ? `<p class="hint">${bySlip}回分の給料日は、給与明細の金額で数えています。</p>` : '')
       + (lh || '<p class="hint">設定の「年収チェック」でラインを入れると、ここに進み具合が出ます。</p>');
   }
+  /* ---- 給与明細：給料日ごとに、明細の総支給額・交通費・振込額を入れて計算と比べる ---- */
+  const LS_SLIPS = 'baito-payslips';
+  let slips = {}, slipGroups = {}, slipKey = '';
+  try { const o = JSON.parse(lsGet(LS_SLIPS) || '{}'); for (const k in o) if (o[k] && +o[k].gross >= 0) slips[k] = o[k]; } catch(_) {}
+  const persistSlips = () => lsSet(LS_SLIPS, JSON.stringify(slips));
+  // 計算と明細の差（給与＋交通費の合計で比べる）
+  const slipState = (s, sl) => { const d = sl.gross - (s.pay + s.trans); return {d, ok: Math.abs(d) < 1}; };
+  function putSlip(k, rec){
+    if (rec) slips[k] = rec; else delete slips[k];
+    persistSlips();
+    if (cloud && cloud.ready){
+      const v = rec || (window.firebase && firebase.firestore && firebase.firestore.FieldValue ? firebase.firestore.FieldValue.delete() : null);
+      cloud.home.set({payslips: {[k]: v}}, {merge: true}).catch(syncErr);
+    }
+    render();
+  }
+  function openSlip(k){
+    const g = slipGroups[k]; if (!g) return;
+    slipKey = k;
+    const sl = slips[k];
+    $('slipTitle').textContent = `${g.pd.m}/${g.pd.d} 支給分の給与明細`;
+    $('slipSub').textContent = `${g.label}の勤務分（${g.list.length}回）`;
+    $('slGross').value = sl ? fmt(sl.gross) : '';
+    $('slTrans').value = sl ? fmt(sl.trans) : '';
+    $('slNet').value = sl && sl.net != null ? fmt(sl.net) : '';
+    $('slipDel').hidden = !sl;
+    $('slipSheet').hidden = false;
+    paintSlip();
+  }
+  function slipForm(){
+    const gross = toInt($('slGross').value), tr = toInt($('slTrans').value), nt = toInt($('slNet').value);
+    return isNaN(gross) ? null : {gross, trans: isNaN(tr) ? 0 : tr, net: isNaN(nt) ? null : nt};
+  }
+  function paintSlip(){
+    const g = slipGroups[slipKey]; if (!g) return;
+    const s = sumOf(g.list), f = slipForm();
+    const cell = (a, b) => b == null ? '<td>—</td><td></td>' : `<td>${yen(b)}</td><td class="${Math.abs(b - a) < 1 ? 'pos' : 'neg'}">${Math.abs(b - a) < 1 ? '一致' : signed(b - a)}</td>`;
+    $('slipCmp').innerHTML = `<tr><th></th><th>計算</th><th>明細</th><th>差</th></tr>`
+      + `<tr><td>給与・手当</td><td>${yen(s.pay)}</td>${cell(s.pay, f ? f.gross - f.trans : null)}</tr>`
+      + `<tr><td>交通費</td><td>${yen(s.trans)}</td>${cell(s.trans, f ? f.trans : null)}</tr>`
+      + `<tr><td><b>総支給額</b></td><td><b>${yen(s.pay + s.trans)}</b></td>${cell(s.pay + s.trans, f ? f.gross : null)}</tr>`
+      + (f && f.net != null ? `<tr><td>引かれた額（税金など）</td><td></td><td>${yen(f.gross - f.net)}</td><td></td></tr>` : '');
+    let note = '';
+    if (f){
+      const d = f.gross - (s.pay + s.trans);
+      note = Math.abs(d) < 1 ? '計算と明細がぴったり合っています。'
+        : `明細のほうが ${signed(d)} です。` + (Math.abs((f.gross - f.trans) - s.pay) >= 1 && Math.abs(f.trans - s.trans) < 1 ? '交通費は合っているので、給与・手当（時間の数え方・手当・時給）がずれています。'
+          : Math.abs((f.gross - f.trans) - s.pay) < 1 ? '給与・手当は合っているので、交通費がずれています。' : '給与・手当と交通費の両方がずれています。')
+          + ' シフトの時間・手当・時給を見直してください。';
+    }
+    $('slipNote').textContent = note;
+  }
+  ['slGross','slTrans','slNet'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); paintSlip(); }));
+  const closeSlip = () => { $('slipSheet').hidden = true; slipKey = ''; resetSlipDel(); };
+  $('slipClose').addEventListener('click', closeSlip);
+  $('slipCancel').addEventListener('click', closeSlip);
+  $('slipSheet').addEventListener('click', e => { if (e.target === $('slipSheet')) closeSlip(); });
+  $('slipSave').addEventListener('click', () => {
+    const f = slipForm();
+    if (!f){ $('slipNote').textContent = '総支給額を入れてください。'; return; }
+    if (f.trans > f.gross){ $('slipNote').textContent = '交通費が総支給額より大きくなっています。'; return; }
+    const k = slipKey; closeSlip();
+    putSlip(k, {...f, at: Date.now()});
+    showToast('給与明細を保存しました', false);
+  });
+  function resetSlipDel(){ const d = $('slipDel'); d.classList.remove('armed'); d.textContent = '明細を消す'; }
+  $('slipDel').addEventListener('click', () => {
+    const d = $('slipDel');
+    if (!d.classList.contains('armed')){ d.classList.add('armed'); d.textContent = 'もう一度押すと消す'; setTimeout(() => { if (d.classList.contains('armed')) resetSlipDel(); }, 3000); return; }
+    const k = slipKey; closeSlip(); putSlip(k, null); showToast('給与明細を消しました', false);
+  });
+  $('periods').addEventListener('click', e => { const r = e.target.closest('tr[data-key]'); if (r) openSlip(r.dataset.key); });
+
   $('yearPrev').addEventListener('click', () => { sumYear--; renderSum(); });
   $('yearNext').addEventListener('click', () => { sumYear++; renderSum(); });
 
@@ -1349,7 +1461,7 @@ html.gate-open body{padding-bottom:0}
   }
   $('saveFileBtn').addEventListener('click', () => {
     const name = `baito-${stamp()}.json`, n = all().length;
-    saveBlob(name, new Blob([JSON.stringify({app: 'baito', v: 2, exportedAt: new Date().toISOString(), shifts, settings})], {type: 'application/json'}), 'application/json', () => say(`${n} 件を保存しました（${name}）。`, 'ok'));
+    saveBlob(name, new Blob([JSON.stringify({app: 'baito', v: 2, exportedAt: new Date().toISOString(), shifts, settings, payslips: slips})], {type: 'application/json'}), 'application/json', () => say(`${n} 件を保存しました（${name}）。`, 'ok'));
   });
   $('saveCsvBtn').addEventListener('click', () => {
     const list = all().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
@@ -1370,6 +1482,7 @@ html.gate-open body{padding-bottom:0}
       let added = 0;
       for (const x of Object.values(src)){ if (validShift(x) && !shifts[x.id]){ putShift({id: x.id, date: x.date, start: x.start, end: x.end, brk: +x.brk || 0, job: JOBS[x.job] ? x.job : 'other', rank: RANKS.includes(x.rank) ? x.rank : '', wage: +x.wage || 0, transport: +x.transport || 0, meals: Math.min(2, +x.meals || 0), rain: !!x.rain, kake: !!x.kake, koko: !!x.koko, ensei: +x.ensei || 0, cost: x.cost == null || x.cost === '' ? null : (+x.cost || 0), memo: String(x.memo || '').slice(0, 60), title: String(x.title || '').slice(0, 40), work: String(x.work || '').slice(0, 30)}); added++; } }
       let setMsg = '';
+      if (data.payslips && typeof data.payslips === 'object'){ let n = 0; for (const k in data.payslips){ const v = data.payslips[k]; if (!slips[k] && v && +v.gross >= 0){ putSlip(k, {gross: +v.gross, trans: +v.trans || 0, net: v.net == null ? null : +v.net, at: +v.at || Date.now()}); n++; } } if (n) setMsg += `給与明細${n}件も読み込みました。`; }
       if (data.settings && (+data.settings.updatedAt || 0) > settings.updatedAt){ settings = normSettings(data.settings); saveSettings(true); setMsg = '設定も読み込みました。'; }
       render();
       say((added ? `${added} 件を読み込みました。` : '新しいシフトはありませんでした（すべて登録済み）。') + setMsg, added || setMsg ? 'ok' : '');
@@ -1759,7 +1872,8 @@ Script.complete();
       gateSkipped = true; setGate(false);
     });
 
-    function stop(){ unsub.forEach(f => f()); unsub = []; cloud = null; shiftsLoaded = false; pendingInbox = null; }
+    let slipsSynced = false;
+    function stop(){ unsub.forEach(f => f()); unsub = []; cloud = null; shiftsLoaded = false; pendingInbox = null; slipsSynced = false; }
     let wasIn = false;
     auth.onAuthStateChanged(async user => {
       stop();
@@ -1807,6 +1921,15 @@ Script.complete();
       unsub.push(home.onSnapshot(d => {
         const rs = d.exists ? (d.data() || {}).settings : null;
         const ib = d.exists ? (d.data() || {}).calInbox : null;
+        // 給与明細：クラウドの内容に合わせる（この端末にだけある明細は、はじめに送る）
+        const rp = d.exists ? ((d.data() || {}).payslips || {}) : {};
+        if (!slipsSynced){
+          slipsSynced = true;
+          const up = {}; for (const k in slips) if (!rp[k]) up[k] = slips[k];
+          if (Object.keys(up).length){ home.set({payslips: up}, {merge: true}).catch(() => {}); Object.assign(rp, up); }
+        }
+        const ns = {}; for (const k in rp) if (rp[k] && +rp[k].gross >= 0) ns[k] = rp[k];
+        if (JSON.stringify(ns) !== JSON.stringify(slips)){ slips = ns; persistSlips(); render(); }
         if (ib && ib.data && (+ib.at || 0) > (+ib.doneAt || 0)){ pendingInbox = ib; tryInbox(); }
         if (rs && (+rs.updatedAt || 0) > settings.updatedAt) applyRemoteSettings(rs);
         else if (settings.updatedAt && (!rs || settings.updatedAt > (+rs.updatedAt || 0))) home.set({settings}, {merge: true}).catch(() => {});
