@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.4', date: '2026/11/17 19:40' };
+window.APP_VERSION = { no: '3.5', date: '2026/11/18 15:57' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -313,6 +313,44 @@ html.gate-open body{padding-bottom:0}
 .update-box .msg{text-align:center}
 .app-version{margin:0;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .csv-note b{color:var(--danger)}
+
+/* chart (same as コイン帳) */
+.chart-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:6px;position:relative}
+.chart-tip{position:absolute;z-index:3;display:flex;flex-direction:column;gap:1px;padding:7px 12px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;white-space:nowrap}
+.chart-tip[hidden],.chart-tip-line[hidden]{display:none}
+.chart-sum{display:flex;flex-direction:column;gap:1px;padding:7px 0 8px;min-height:62px;box-sizing:border-box}
+.chart-sum.off{visibility:hidden}
+.chart-sum .tl,.chart-tip .tl{font-size:11px;font-weight:700;color:var(--muted)}
+.chart-sum .tv,.chart-tip .tv{font-variant-numeric:tabular-nums;line-height:1.1}
+.chart-sum .tv b,.chart-tip .tv b{font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.chart-sum .tv small,.chart-tip .tv small{font-size:12px;font-weight:700;color:var(--muted);margin:0 3px 0 2px}
+.chart-sum .td,.chart-tip .td{font-size:11.5px;font-weight:700;color:var(--muted)}
+.chart-tip-line{position:absolute;z-index:2;width:2px;background:var(--muted);opacity:.6;pointer-events:none}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-head .k{font-size:12px;font-weight:700;color:var(--muted)}
+.chart-title{display:flex;align-items:center;gap:4px;min-width:0}
+.chart-pick{position:relative;display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:var(--ink);padding:5px 9px;border-radius:9px;border:1.5px solid var(--line);background:var(--bg);white-space:nowrap}
+.chart-pick svg{width:10px;height:6px;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chart-pick select{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer;-webkit-appearance:none;appearance:none}
+.chart-pick:focus-within{outline:2px solid var(--teal);outline-offset:1px}
+.chart-wrap{width:100%}
+#chart{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.chart-sub[hidden]{display:none}
+.chart-sub{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:12px;color:var(--muted);font-weight:700}
+.chart-nav{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.chart-nav > button:not(.btn){border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;width:32px;height:28px;font-size:16px;font-weight:700;flex:none}
+.chart-nav > button:disabled{opacity:.35;cursor:default}
+.chart-nav .btn{padding:3px 10px;font-size:12px;margin-left:auto;white-space:nowrap;flex:none}
+#chart .grid{stroke:var(--line);stroke-width:1}
+#chart .zero{stroke:var(--muted);stroke-width:1}
+#chart .avg{stroke:var(--coin-deep);stroke-width:1.5;stroke-dasharray:4 3;fill:none}
+#chart .cbar{fill:var(--teal)}
+#chart .cbar.neg{fill:var(--danger)}
+#chart .cbar.today{fill:var(--coin)}
+#chart .cbar.plan{fill-opacity:.4}
+#chart .cbar.sel{stroke:var(--ink);stroke-width:1.5}
+#chart .hit{fill:transparent;cursor:pointer}
+#chart text{fill:var(--muted);font-size:10px;font-family:var(--font-body);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -362,6 +400,37 @@ html.gate-open body{padding-bottom:0}
 
   <!-- 集計 -->
   <div class="tabpage" id="tabSum" data-page="sum" hidden>
+    <div class="chart-card" id="secChart">
+      <div class="chart-head">
+        <span class="k chart-title"><span id="chartTitle">月ごとの</span><span class="chart-pick"><span id="chartMetricLbl">給与</span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg><select id="chartMetric" aria-label="グラフにする値">
+          <option value="pay">給与</option>
+          <option value="trans">給与＋交通費</option>
+          <option value="net">実質</option>
+          <option value="work">勤務時間</option>
+          <option value="n">勤務回数</option>
+          <option value="wage">平均時給</option>
+        </select></span></span>
+        <div class="seg" id="chartUnit" role="group" aria-label="単位">
+          <button type="button" data-u="day">日</button><button type="button" data-u="week">週</button><button type="button" data-u="month">月</button><button type="button" data-u="year">年</button>
+        </div>
+      </div>
+      <div class="chart-sub" id="chartRangeRow">
+        <span>表示する日数</span>
+        <div class="seg" id="chartRange" role="group" aria-label="日数">
+          <button type="button" data-r="7">7日</button><button type="button" data-r="14">14日</button><button type="button" data-r="30">30日</button>
+        </div>
+      </div>
+      <div class="chart-nav">
+        <button type="button" id="chartPrev" aria-label="前の期間へ">‹</button>
+        <span class="num" id="chartPeriod"></span>
+        <button type="button" id="chartNext" aria-label="後の期間へ">›</button>
+        <button type="button" class="btn" id="chartToday" hidden>今日へ</button>
+      </div>
+      <div class="chart-sum" id="chartSum"></div>
+      <div class="chart-tip" id="chartTip" hidden></div><div class="chart-tip-line" id="chartTipLine" hidden></div>
+      <div class="chart-wrap"><svg id="chart" viewBox="0 0 360 180" role="img" aria-label="月ごとの給与の棒グラフ"></svg></div>
+      <p class="hint" style="margin:0">勤務した日で集計（給料日ではありません）。薄い棒＝これからの予定を含む期間。点線＝勤務した期間の平均。</p>
+    </div>
     <div class="pnav">
       <button type="button" id="yearPrev" aria-label="前の年">‹</button>
       <div><b id="yearTitle"></b><div class="s">給料日ベース（その年に支給される分）</div></div>
@@ -828,6 +897,7 @@ html.gate-open body{padding-bottom:0}
   function render(){
     $('jobName').textContent = settings.jobName;
     renderCal(); renderList(); renderSum();
+    if (!$('tabSum').hidden) renderChart();
   }
 
   function renderCal(){
@@ -934,6 +1004,185 @@ html.gate-open body{padding-bottom:0}
   }
   $('yearPrev').addEventListener('click', () => { sumYear--; renderSum(); });
   $('yearNext').addEventListener('click', () => { sumYear++; renderSum(); });
+
+  /* ---- 集計のグラフ（コイン帳と同じ形）：日／週／月／年 ---- */
+  const lsG = k => lsGet('baito-chart-' + k), lsS = (k, v) => lsSet('baito-chart-' + k, v);
+  const METRICS = {pay: '給与', trans: '給与＋交通費', net: '実質', work: '勤務時間', n: '勤務回数', wage: '平均時給'};
+  let chartRange = [7, 14, 30].includes(+lsG('range')) ? +lsG('range') : 14;
+  let chartUnit = ['day','week','month','year'].includes(lsG('unit')) ? lsG('unit') : 'month';
+  let chartMetric = METRICS[lsG('metric')] ? lsG('metric') : 'pay';
+  let chartSel = '', chartHover = '', chartOff = 0, chartTag = () => {};
+  const UNIT = {day: {name: '日', count: () => chartRange}, week: {name: '週', count: () => 8}, month: {name: '月', count: () => 12}, year: {name: '年', count: () => 5}};
+  function bucketStart(unit, back){
+    const n = new Date(), y = n.getFullYear(), m = n.getMonth(), d = n.getDate();
+    if (unit === 'day') return new Date(y, m, d - back);
+    if (unit === 'week') return new Date(y, m, d - wkOff(n) - back * 7);
+    if (unit === 'month') return new Date(y, m - back, 1);
+    return new Date(y - back, 0, 1);
+  }
+  function bucketEnd(unit, st){
+    const y = st.getFullYear(), m = st.getMonth(), d = st.getDate();
+    if (unit === 'day') return st;
+    if (unit === 'week') return new Date(y, m, d + 6);
+    if (unit === 'month') return new Date(y, m + 1, 0);
+    return new Date(y, 11, 31);
+  }
+  function bucketKey(unit, k){
+    const [y, m, d] = k.split('-').map(Number);
+    if (unit === 'day') return k;
+    if (unit === 'week'){ const dt = new Date(y, m - 1, d); return dayKey(new Date(y, m - 1, d - wkOff(dt))); }
+    if (unit === 'month') return `${y}-${pad(m)}`;
+    return String(y);
+  }
+  const startKey = (unit, dt) => unit === 'day' || unit === 'week' ? dayKey(dt) : unit === 'month' ? `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}` : String(dt.getFullYear());
+  const md = dt => `${dt.getMonth() + 1}/${dt.getDate()}`;
+  function bucketLabel(unit, b, i){
+    const dt = b.start;
+    if (unit === 'day') return b.back === 0 ? '今日' : (dt.getDate() === 1 || i === 0 ? md(dt) : String(dt.getDate()));
+    if (unit === 'week') return b.back === 0 ? '今週' : md(dt);
+    if (unit === 'month') return `${dt.getMonth() + 1}月`;
+    return String(dt.getFullYear());
+  }
+  function niceMax(v){ if (v <= 0) return 0; const e = Math.pow(10, Math.floor(Math.log10(v))), f = v / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
+  // 何期間前か（マイナス＝先の期間）
+  function backOf(unit, k){
+    const key = bucketKey(unit, k), cur = startKey(unit, bucketStart(unit, 0));
+    let b = 0;
+    if (key <= cur){ while (b < 5000 && startKey(unit, bucketStart(unit, b)) > key) b++; }
+    else { while (b > -1000 && startKey(unit, bucketStart(unit, b)) < key) b--; }
+    return b;
+  }
+  function chartLimits(){
+    let oldest = '', newest = '';
+    for (const x of all()){ if (!oldest || x.date < oldest) oldest = x.date; if (!newest || x.date > newest) newest = x.date; }
+    if (!oldest) return {max: 0, min: 0};
+    return {max: Math.max(0, backOf(chartUnit, oldest) - UNIT[chartUnit].count() + 1), min: Math.min(0, backOf(chartUnit, newest))};
+  }
+  function renderChart(){
+    const U = UNIT[chartUnit], count = U.count(), M = chartMetric, t = today();
+    document.querySelectorAll('#chartUnit button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === chartUnit ? 'true' : 'false'));
+    document.querySelectorAll('#chartRange button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.r === chartRange ? 'true' : 'false'));
+    $('chartRangeRow').hidden = chartUnit !== 'day';
+    $('chartMetric').value = M; $('chartMetricLbl').textContent = METRICS[M];
+    $('chartTitle').textContent = `${U.name}ごとの`;
+    const per = new Map();
+    for (const sh of all()){
+      const k = bucketKey(chartUnit, sh.date), a = per.get(k) || {n: 0, pay: 0, trans: 0, net: 0, work: 0, plan: 0}, c = calc(sh);
+      a.n++; a.pay += c.pay; a.trans += c.trans; a.net += c.net; a.work += c.work; if (sh.date > t) a.plan++; per.set(k, a);
+    }
+    const valueOf = a => !a || !a.n ? null : M === 'pay' ? a.pay : M === 'trans' ? a.pay + a.trans : M === 'net' ? a.net : M === 'work' ? a.work : M === 'n' ? a.n : (a.work ? a.pay / (a.work / 60) : null);
+    const isRatio = M === 'wage';
+    const fmtAxis = v => M === 'work' ? `${+(v / 60).toFixed(1)}h` : M === 'n' ? fmt(v) : compact(v);
+    const fmtFull = v => v == null ? '—' : M === 'work' ? hm(Math.round(v)) : M === 'n' ? `${+v.toFixed(1)}回` : yen(v);
+    const days = [];
+    for (let i = count - 1; i >= 0; i--){
+      const back = chartOff + i, start = bucketStart(chartUnit, back), k = startKey(chartUnit, start), a = per.get(k);
+      days.push({k, start, back, a, v: valueOf(a), n: a ? a.n : 0, plan: a ? a.plan : 0});
+    }
+    const W = Math.max(360, Math.round($('chart').parentNode.clientWidth || 0)), H = W > 360 ? 200 : 180, L = 46, R = 6, T = 10, B = 22, cw = W - L - R, ch = H - T - B;
+    $('chart').setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const vals = days.map(d => d.v).filter(v => v != null);
+    const sc = M === 'work' ? 60 : 1;   // 勤務時間は「時間」単位できりのいい目盛りにする
+    const hi = niceMax(Math.max(0, ...vals) / sc) * sc, negMax = Math.max(0, ...vals.map(v => -v));
+    const lo = negMax > 0 ? -Math.max(niceMax(negMax), niceMax(hi * 0.2)) : 0, top = hi || (lo ? 0 : 1), span = (top - lo) || 1;
+    const y = v => T + (top - v) / span * ch;
+    const step = cw / days.length, bw = Math.max(2, step * 0.62);
+    let g = '';
+    const ticks = !vals.length || (top === 1 && lo === 0 && !vals.some(v => v)) ? [0] : lo < 0 ? [top, 0, lo] : [top, top / 2, 0];
+    for (const tk of ticks) g += `<line class="${tk === 0 ? 'zero' : 'grid'}" x1="${L}" x2="${W - R}" y1="${y(tk)}" y2="${y(tk)}"/><text x="${L - 5}" y="${y(tk) + 3}" text-anchor="end">${tk === 0 ? '0' : fmtAxis(tk)}</text>`;
+    const labelEvery = chartUnit !== 'day' ? 1 : chartRange <= 7 ? 1 : chartRange <= 14 ? 2 : 5;
+    days.forEach((d, i) => {
+      const cx = L + step * i + step / 2;
+      if (d.v != null){
+        const y0 = y(0), y1 = y(d.v), h = Math.max(1.5, Math.abs(y1 - y0));
+        const cls = ['cbar', d.v < 0 ? 'neg' : '', d.back === 0 ? 'today' : '', d.plan ? 'plan' : '', d.k === chartSel ? 'sel' : ''].filter(Boolean).join(' ');
+        g += `<rect class="${cls}" x="${cx - bw / 2}" y="${d.v < 0 ? y0 : y0 - h}" width="${bw}" height="${h}" rx="${Math.min(3, bw / 3)}"/>`;
+      }
+      g += `<rect class="hit" data-k="${d.k}" x="${cx - step / 2}" y="${T}" width="${step}" height="${ch + B}"/>`;
+      if ((count - 1 - i) % labelEvery === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${bucketLabel(chartUnit, d, i)}</text>`;
+    });
+    const worked = days.filter(d => d.v != null);
+    const avg = worked.length ? worked.reduce((s2, d) => s2 + d.v, 0) / worked.length : null;
+    if (avg != null && worked.length > 1) g += `<line class="avg" x1="${L}" x2="${W - R}" y1="${y(avg)}" y2="${y(avg)}"/>`;
+    $('chart').innerHTML = g;
+    const tipVal = v => M === 'work' ? (() => { const h = Math.floor(v / 60), m = Math.round(v % 60); return (h ? `<b>${h}</b><small>時間</small>` : '') + (m || !h ? `<b>${m}</b><small>分</small>` : ''); })()
+      : M === 'n' ? `<b>${Number.isInteger(v) ? fmt(v) : v.toFixed(1)}</b><small>回</small>`
+      : M === 'wage' ? `<b>${fmt(v)}</b><small>円/時</small>` : `<b>${fmt(v)}</b><small>円</small>`;
+    const tipDate = d => {
+      const st = d.start, en = bucketEnd(chartUnit, st);
+      if (chartUnit === 'day') return `${st.getFullYear()}/${dayLabel(d.k)}`;
+      if (chartUnit === 'week') return `${st.getFullYear()}/${md(st)}〜${en.getFullYear() !== st.getFullYear() ? en.getFullYear() + '/' : ''}${md(en)}の週`;
+      if (chartUnit === 'month') return `${st.getFullYear()}年${st.getMonth() + 1}月`;
+      return `${st.getFullYear()}年`;
+    };
+    chartTag = k => {
+      const tip = $('chartTip'), line = $('chartTipLine'), sum = $('chartSum');
+      let si = days.findIndex(d => d.k === k && d.v != null);
+      if (si < 0) si = days.findIndex(d => d.k === chartSel && d.v != null);
+      if (si < 0){ tip.hidden = line.hidden = true; sum.classList.remove('off'); return; }
+      sum.classList.add('off');
+      const d = days[si];
+      tip.innerHTML = `<span class="tl">${METRICS[M]}</span><span class="tv">${tipVal(d.v)}</span><span class="td">${tipDate(d)}・${d.n}回${d.plan ? `（うち予定${d.plan}回）` : ''}</span>`;
+      tip.hidden = line.hidden = false;
+      const card = $('secChart').getBoundingClientRect(), svg = $('chart').getBoundingClientRect(), sc = svg.width / W;
+      const bx = svg.left - card.left + (L + step * si + step / 2) * sc;
+      const barTop = svg.top - card.top + Math.min(y(d.v), y(0)) * sc;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const left = Math.min(card.width - tw - 6, Math.max(6, bx - tw / 2)), top = sum.offsetTop;
+      tip.style.left = left + 'px'; tip.style.top = top + 'px';
+      line.style.left = (bx - 1) + 'px'; line.style.top = (top + th) + 'px'; line.style.height = Math.max(0, barTop - top - th - 2) + 'px';
+    };
+    chartTag(chartHover || chartSel);
+    $('chart').setAttribute('aria-label', `${U.name}ごとの${METRICS[M]}の棒グラフ`);
+    const f = days[0].start, l = bucketEnd(chartUnit, days[days.length - 1].start);
+    const period = chartUnit === 'month' ? `${f.getFullYear()}/${f.getMonth() + 1}〜${l.getFullYear()}/${l.getMonth() + 1}`
+      : chartUnit === 'year' ? `${f.getFullYear()}〜${l.getFullYear()}年`
+      : `${f.getFullYear()}/${md(f)}〜` + (f.getFullYear() !== l.getFullYear() ? `${l.getFullYear()}/` : '') + md(l);
+    $('chartPeriod').textContent = period;
+    const lim = chartLimits();
+    $('chartNext').disabled = chartOff <= lim.min;
+    $('chartPrev').disabled = chartOff >= lim.max;
+    $('chartToday').hidden = chartOff === 0;
+    const nm = chartUnit === 'day' ? `${count}日間` : `${count}${chartUnit === 'week' ? '週' : chartUnit === 'month' ? 'か月' : '年'}間`;
+    const unitN = chartUnit === 'month' ? 'か月' : U.name;
+    const tot = {n: 0, pay: 0, trans: 0, net: 0, work: 0, plan: 0}; worked.forEach(d => { for (const k2 in tot) tot[k2] += d.a[k2]; });
+    $('chartSum').innerHTML = worked.length
+      ? `<span class="tl">${nm}${isRatio ? '全体の' + METRICS[M] : 'の合計'}${tot.plan ? '（予定込み）' : ''}</span><span class="tv">${tipVal(valueOf(tot))}</span>`
+        + `<span class="td">${worked.length > 1 ? `点線＝勤務した${unitN}の平均 ${fmtFull(avg)}（${worked.length}${unitN}）` : `${tot.n}回勤務`}</span>`
+      : `<span class="tl">${nm}</span><span class="tv"><b>—</b></span><span class="td">シフトはありません</span>`;
+  }
+  function shiftChart(n){
+    const lim = chartLimits(), v = Math.max(lim.min, Math.min(lim.max, chartOff + n));
+    if (v !== chartOff){ chartOff = v; renderChart(); }
+  }
+  $('chartPrev').addEventListener('click', () => shiftChart(UNIT[chartUnit].count()));
+  $('chartNext').addEventListener('click', () => shiftChart(-UNIT[chartUnit].count()));
+  $('chartToday').addEventListener('click', () => { chartOff = 0; chartSel = ''; renderChart(); });
+  (() => {   // 横にドラッグ／スワイプで1本ずつずらす
+    const svg = $('chart');
+    let startX = null, startOff = 0, dragged = false;
+    svg.addEventListener('pointerdown', e => { startX = e.clientX; startOff = chartOff; dragged = false; });
+    svg.addEventListener('pointermove', e => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      if (!dragged && Math.abs(dx) < 8) return;
+      dragged = true;
+      const vbW = svg.viewBox.baseVal.width || 360;
+      const barPx = svg.getBoundingClientRect().width * ((vbW - 46) / vbW) / UNIT[chartUnit].count();
+      const lim = chartLimits(), v = Math.max(lim.min, Math.min(lim.max, startOff + Math.round(dx / barPx)));
+      if (v !== chartOff){ chartOff = v; renderChart(); }
+    });
+    const end = () => { startX = null; };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end); svg.addEventListener('pointerleave', end);
+    svg.addEventListener('click', e => { if (dragged){ e.stopImmediatePropagation(); dragged = false; } }, true);
+  })();
+  $('chartRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartRange = +b.dataset.r; lsS('range', String(chartRange)); chartSel = ''; chartOff = 0; renderChart(); });
+  $('chartUnit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; chartUnit = b.dataset.u; lsS('unit', chartUnit); chartSel = ''; chartOff = 0; renderChart(); });
+  $('chartMetric').addEventListener('change', e => { chartMetric = e.target.value; lsS('metric', chartMetric); chartSel = ''; renderChart(); });
+  let chartRz = 0; window.addEventListener('resize', () => { clearTimeout(chartRz); chartRz = setTimeout(() => { if ($('chart').getBoundingClientRect().width) renderChart(); }, 150); });
+  $('chart').addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; const h = e.target.closest('.hit'), k = h ? h.dataset.k : ''; if (k !== chartHover){ chartHover = k; chartTag(k); } });
+  $('chart').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse'){ chartHover = ''; chartTag(chartSel); } });
+  $('chart').addEventListener('click', e => { const r = e.target.closest('.hit'); if (!r) return; chartSel = chartSel === r.dataset.k ? '' : r.dataset.k; renderChart(); });
 
   /* ---- シフトの入力・編集 ---- */
   let editing = null, fRank = 'C', fMeals = 0, fRain = false, fKake = false, fKoko = false;
@@ -1398,6 +1647,7 @@ Script.complete();
     document.querySelectorAll('.tabpage').forEach(p => { p.hidden = p.dataset.page !== t; });
     $('fab').hidden = !(t === 'cal' || t === 'list');
     if (t === 'set') fillSettings();
+    if (t === 'sum') renderChart();
     const y = tabScroll[t] || 0; window.scrollTo(0, y); requestAnimationFrame(() => window.scrollTo(0, y));
     tabReady = true;
   }
