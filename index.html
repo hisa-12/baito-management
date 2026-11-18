@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.8', date: '2026/11/18 18:18' };
+window.APP_VERSION = { no: '4.0', date: '2026/11/18 18:44' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -748,7 +748,22 @@ html.gate-open body{padding-bottom:0}
   };
   const RANKS = ['S','A','B','C'];
   const OT_RATE = .25, NIGHT_RATE = .25, MEAL = 800, RAIN = 500, KAKE = 500, KOKO = 3000, RANK_BONUS = 500;
-  const tableWage = (job, rank) => JOBS[job] && JOBS[job].w ? JOBS[job].w[rank] : null;
+  // 2026年10月1日より前の勤務は、前の給料表（2026年4月1日現在：どの業務・ランクも50円低い）
+  const OLD_WAGES = {from: '2026-04-01', until: '2026-10-01', w: {
+    guide: {S:1400, A:1350, B:1300, C:1250}, setup: {S:1450, A:1400, B:1350, C:1300}, single: {S:1500, A:1450, B:1400, C:1350},
+    cater: {S:1500, A:1450, B:1400, C:1350}, guard: {S:1550, A:1500, B:1450, C:1400}}};
+  const tableWage = (job, rank, date) => {
+    if (!JOBS[job] || !JOBS[job].w) return null;
+    if (date && date < OLD_WAGES.until && OLD_WAGES.w[job]) return OLD_WAGES.w[job][rank] ?? null;
+    return JOBS[job].w[rank] ?? null;
+  };
+  // 前の版で、9月の勤務にも10月からの時給を入れていたシフトを、前の給料表の時給に直す
+  function fixOldWages(){
+    for (const sh of Object.values(shifts)){
+      if (sh.date >= OLD_WAGES.until || !OLD_WAGES.w[sh.job] || !RANKS.includes(sh.rank)) continue;
+      if (+sh.wage === JOBS[sh.job].w[sh.rank]) putShift({...sh, wage: OLD_WAGES.w[sh.job][sh.rank]});
+    }
+  }
   const jobLabel = sh => JOBS[sh.job] && sh.job !== 'other' ? `${JOBS[sh.job].name}（${sh.rank}）・` : '';
   const LINE_NAMES = {1360000: '税の扶養（19〜22歳以外）', 1500000: '社会保険の扶養（交通費込み）', 1590000: '税の扶養（19〜22歳）'};
   const LINE_WITH_TRANS = new Set([1500000]);
@@ -806,7 +821,8 @@ html.gate-open body{padding-bottom:0}
     let base = Math.floor(((rd + rn) * wage + (od + on) * otw + (rn + on) * na) / 60);
     const minH = JOBS[sh.job] ? JOBS[sh.job].min : 0;
     let guaranteed = false;
-    if (minH && work < minH * 60 && wage * minH > base){ base = wage * minH; guaranteed = true; }
+    // 最低保証：最低保証時間ぶんの時給に、深夜加算は上乗せ（実際の支給額で確認済み：20:00〜22:30 撤去C → ¥4,200＋¥175）
+    if (minH && work < minH * 60){ const g = Math.floor(wage * minH + (rn + on) * na / 60); if (g > base){ base = g; guaranteed = true; } }
     const allow = (+sh.meals || 0) * MEAL + (sh.rain ? RAIN : 0) + (sh.kake ? KAKE : 0) + (sh.koko ? KOKO : 0) + (+sh.ensei || 0);
     const bonus = ['S','A','B'].includes(sh.rank) ? RANK_BONUS : 0;
     const trans = (+sh.transport || 0) + bonus;
@@ -1302,7 +1318,7 @@ html.gate-open body{padding-bottom:0}
   function paintEditor(){
     document.querySelectorAll('#fRankSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === fRank ? 'true' : 'false'));
     document.querySelectorAll('#fAllow .chip').forEach(c => { const a = c.dataset.a; c.classList.toggle('on', a === 'meal1' ? fMeals === 1 : a === 'meal2' ? fMeals === 2 : a === 'rain' ? fRain : a === 'koko' ? fKoko : fKake); });
-    const tw = tableWage($('fJob').value, fRank);
+    const tw = tableWage($('fJob').value, fRank, $('fDate').value);
     if (tw != null) $('fWage').value = fmt(tw);
     $('fWage').readOnly = tw != null;
     $('fWage').style.opacity = tw != null ? '.7' : '';
@@ -1321,7 +1337,7 @@ html.gate-open body{padding-bottom:0}
     $('fJob').value = sh ? (JOBS[sh.job] ? sh.job : 'other') : settings.job;
     fRank = sh ? (RANKS.includes(sh.rank) ? sh.rank : settings.rank) : settings.rank;
     fMeals = sh ? (+sh.meals || 0) : 0; fRain = sh ? !!sh.rain : false; fKake = sh ? !!sh.kake : false; fKoko = sh ? !!sh.koko : false;
-    $('fWage').value = fmt(sh ? sh.wage : (tableWage(settings.job, settings.rank) ?? settings.wage));
+    $('fWage').value = fmt(sh ? sh.wage : (tableWage(settings.job, settings.rank, k) ?? settings.wage));
     $('fTrans').value = fmt(sh ? (sh.transport || 0) : settings.transport);
     $('fEnsei').value = sh && +sh.ensei ? fmt(sh.ensei) : '';
     $('fCost').value = sh ? (sh.cost == null || sh.cost === '' ? '' : fmt(sh.cost)) : (settings.cost ? fmt(settings.cost) : '');
@@ -1354,7 +1370,7 @@ html.gate-open body{padding-bottom:0}
   }
   ['fStart','fEnd','fBrk','fWage','fTrans','fEnsei','fCost'].forEach(id => $(id).addEventListener('input', preview));
   ['fBrk','fWage','fTrans','fEnsei','fCost'].forEach(id => $(id).addEventListener('input', e => { const v = toInt(e.target.value); e.target.value = isNaN(v) ? '' : fmt(v); }));
-  $('fDate').addEventListener('change', preview);
+  $('fDate').addEventListener('change', () => { paintEditor(); preview(); });
   $('fJob').addEventListener('change', () => { paintEditor(); preview(); });
   $('fRankSeg').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (b){ fRank = b.dataset.v; paintEditor(); preview(); } });
   $('fAllow').addEventListener('click', e => {
@@ -1571,7 +1587,7 @@ html.gate-open body{padding-bottom:0}
         const job = jobFromText(x.w || x.t);
         const memo = [String(x.t || ''), x.l ? '＠' + x.l : '', x.w ? '／' + x.w : ''].join('').slice(0, 60);
         const sh = old ? {...old, date: x.d, start: x.s, end: x.e, koko: !!old.koko || koko, transport: fareFix ? fare.amt : old.transport, title: old.title || String(x.t || '').slice(0, 40), work: old.work || String(x.w || '').slice(0, 30)}
-          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank) ?? settings.wage, transport: fare ? fare.amt : settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, cost: settings.cost ? settings.cost : null, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
+          : {id, date: x.d, start: x.s, end: x.e, brk: 0, job, rank: settings.rank, wage: tableWage(job, settings.rank, x.d) ?? settings.wage, transport: fare ? fare.amt : settings.transport, meals: 0, rain: false, kake: false, koko, ensei: 0, cost: settings.cost ? settings.cost : null, memo, title: String(x.t || '').slice(0, 40), work: String(x.w || '').slice(0, 30)};
         return {sh, old, status, timeSame, kokoNew, fare, fareFix, on: status === 'new' || status === 'changed'};
       }).sort((a, b) => (a.sh.date + a.sh.start).localeCompare(b.sh.date + b.sh.start));
     const show = impItems.filter(x => x.status !== 'same'), same = impItems.length - show.length;
@@ -1953,7 +1969,7 @@ Script.complete();
         if (!first && !snap.docChanges().length) return;
         first = false;
         const o = {}; snap.forEach(d => { const x = d.data(); if (validShift(x)) o[d.id] = x; });
-        shifts = o; persist(); render();
+        shifts = o; persist(); fixOldWages(); render();
       }, () => setStatus('同期できません（再ログインしてください）', false, true)));
       unsub.push(home.onSnapshot(d => {
         const rs = d.exists ? (d.data() || {}).settings : null;
@@ -1974,6 +1990,7 @@ Script.complete();
     });
   })();
 
+  fixOldWages();
   showTab(settings.startTab);
   fillSettings();
   render();
