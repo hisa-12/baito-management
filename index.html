@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '4.0', date: '2026/11/18 18:44' };
+window.APP_VERSION = { no: '4.1', date: '2026/11/18 19:01' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -486,11 +486,11 @@ html.gate-open body{padding-bottom:0}
         <div class="pref-row">
           <div class="pref-grid">
             <label>交通費補助（1現場・円）<input id="sTrans" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
-            <label>時給（「その他」のとき）<input id="sWage" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
+            <label id="sWageBox">給料表にない仕事の時給（円）<input id="sWage" class="pref-text num" inputmode="numeric" autocomplete="off"></label>
             <label>いつもの実際の交通費（円）<input id="sCost" class="pref-text num" inputmode="numeric" autocomplete="off" placeholder="なし"></label>
           </div>
           <p class="hint">「いつもの実際の交通費」を入れると、新しいシフトの「実際の交通費」に最初から入ります（現場ごとに違うときは、シフトで直してください）。</p>
-          <p class="hint">給料表（2026年10月1日現在）どおりに自動で計算します：勤務時間は15分単位（端数は切り捨て）／8時間を超えた分は時間外（25%増）／22〜翌5時は深夜加算（25%）／最低保証時間より短いときは最低保証料／Bランク以上は交通費補助手当500円を自動でプラス。ランクを変えても、これまでのシフトの時給は変わりません。</p>
+          <p class="hint">給料表どおりに自動で計算します（10月からの勤務は2026年10月1日現在、9月までの勤務は2026年4月1日現在の表）：勤務時間は15分単位（端数は切り捨て）／8時間を超えた分は時間外（25%増）／22〜翌5時は深夜加算（25%）／最低保証時間より短いときは最低保証料／Bランク以上は交通費補助手当500円を自動でプラス。ランクを変えても、これまでのシフトの時給は変わりません。</p>
         </div>
         <div class="pref-row">
           <span class="pref-k">休憩時間</span>
@@ -1416,7 +1416,8 @@ html.gate-open body{padding-bottom:0}
     $('sJobKind').value = settings.job;
     segSet('sRankSeg', settings.rank);
     const tw = tableWage(settings.job, settings.rank);
-    $('sWageNote').textContent = tw != null ? `→ 時給 ${yen(tw)}・時間外 ${yen(Math.round(tw * 1.25))}・深夜加算 ${yen(Math.round(tw * .25))}・最低保証 ${JOBS[settings.job].min}時間（${yen(tw * JOBS[settings.job].min)}）${['S','A','B'].includes(settings.rank) ? '・交通費補助手当 ¥500' : ''}` : '→ 時給は下の「時給（その他のとき）」を使います';
+    $('sWageBox').hidden = settings.job !== 'other';   // 「いつもの業務」が「その他」のときだけ出す
+    $('sWageNote').textContent = tw != null ? `→ 時給 ${yen(tw)}・時間外 ${yen(Math.round(tw * 1.25))}・深夜加算 ${yen(Math.round(tw * .25))}・最低保証 ${JOBS[settings.job].min}時間（${yen(tw * JOBS[settings.job].min)}）${['S','A','B'].includes(settings.rank) ? '・交通費補助手当 ¥500' : ''}` : '→ 時給は下の「給料表にない仕事の時給」を使います';
     segSet('breakSeg', settings.useBreak ? 'on' : 'off');
     segSet('payModeSeg', settings.payMode);
     segSet('payShiftSeg', settings.payShift ? 'on' : 'off');
