@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.7', date: '2026/11/18 18:14' };
+window.APP_VERSION = { no: '3.8', date: '2026/11/18 18:18' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -1755,9 +1755,11 @@ Script.complete();
       const open = anyOpen(), b = document.body.style;
       if (open && lockedY === null){
         lockedY = window.scrollY;
-        b.position = 'fixed'; b.top = `-${lockedY}px`; b.left = '0'; b.right = '0'; b.width = '100%';
+        // 横幅はそのまま（width を指定すると左右の余白のぶん横にはみ出して、拡大したように見える）
+        const padTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
+        b.position = 'fixed'; b.top = `${padTop - lockedY}px`; b.left = '0'; b.right = '0';
       } else if (!open && lockedY !== null){
-        b.position = b.top = b.left = b.right = b.width = '';
+        b.position = b.top = b.left = b.right = '';
         window.scrollTo(0, lockedY); lockedY = null;
       }
       fit();
