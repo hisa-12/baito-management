@@ -15,7 +15,7 @@ try{var t=localStorage.getItem("baito-theme");if(t==="light"||t==="dark")documen
 <link rel="icon" type="image/png" href="icon-180.png?v=2">
 <script>
 /* アプリのバージョン（更新するたびに変える） */
-window.APP_VERSION = { no: '3.6', date: '2026/11/18 18:09' };
+window.APP_VERSION = { no: '3.7', date: '2026/11/18 18:14' };
 /* ▼ Firebaseの設定（コイン帳と同じプロジェクト） */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyBk77Cdfv_ke79S9pG2sKr-osrOvWaNwrE",
@@ -218,8 +218,8 @@ tr.future td{color:var(--muted)}
 .pref-grid3{grid-template-columns:1fr 1fr 1fr}
 
 /* editor (bottom sheet) */
-.sheet{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.38);display:flex;align-items:flex-end;justify-content:center}
-.sheet-card{width:100%;max-width:560px;max-height:92vh;max-height:92dvh;overflow:auto;box-sizing:border-box;background:var(--surface);border-radius:22px 22px 0 0;
+.sheet{position:fixed;inset:0;z-index:50;overscroll-behavior:contain;touch-action:none;background:rgba(0,0,0,.38);display:flex;align-items:flex-end;justify-content:center}
+.sheet-card{width:100%;max-width:560px;max-height:92%;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;box-sizing:border-box;background:var(--surface);border-radius:22px 22px 0 0;
   padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;
   box-shadow:0 -10px 30px -12px var(--glass-shadow)}
 @media (min-width:700px){.sheet{align-items:center}.sheet-card{border-radius:22px}}
@@ -1736,6 +1736,41 @@ Script.complete();
   }
   $('copyScript').addEventListener('click', () => copyText(scriptText(), $('copyMsg')));
   $('copyAutoScript').addEventListener('click', () => copyText(autoScriptText(), $('copyAutoMsg')));
+
+  /* ---- 下から出る画面（シフト入力・読み込み・給与明細）の共通の動き ----
+     ・開いている間は、後ろのページがスクロールしないように止める
+     ・キーボードが出たら、画面をキーボードの上に収めて、入力中の欄が隠れないようにする */
+  (() => {
+    const sheets = [...document.querySelectorAll('.sheet')];
+    let lockedY = null;
+    const anyOpen = () => sheets.some(el => !el.hidden);
+    function fit(){
+      const vv = window.visualViewport;
+      for (const el of sheets){
+        if (el.hidden || !vv){ el.style.top = el.style.height = el.style.bottom = ''; continue; }
+        el.style.top = vv.offsetTop + 'px'; el.style.height = vv.height + 'px'; el.style.bottom = 'auto';
+      }
+    }
+    function sync(){
+      const open = anyOpen(), b = document.body.style;
+      if (open && lockedY === null){
+        lockedY = window.scrollY;
+        b.position = 'fixed'; b.top = `-${lockedY}px`; b.left = '0'; b.right = '0'; b.width = '100%';
+      } else if (!open && lockedY !== null){
+        b.position = b.top = b.left = b.right = b.width = '';
+        window.scrollTo(0, lockedY); lockedY = null;
+      }
+      fit();
+    }
+    const mo = new MutationObserver(sync);
+    sheets.forEach(el => mo.observe(el, {attributes: true, attributeFilter: ['hidden']}));
+    if (window.visualViewport){ visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
+    // 入力欄をタップしたら、キーボードが出たあとでその欄が見える位置までずらす
+    document.addEventListener('focusin', e => {
+      const el = e.target; if (!el.closest || !el.closest('.sheet-card') || !/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+      setTimeout(() => { fit(); el.scrollIntoView({block: 'center', behavior: 'smooth'}); }, 350);
+    });
+  })();
 
   /* ---- 外観モード ---- */
   function applyTheme(th){
